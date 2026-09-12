@@ -1,24 +1,73 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { HeartHandshake, Vote } from "lucide-react";
+import { AppShell } from "@/components/AppShell";
+import { PostComposer, PostFeed } from "@/components/posts";
+import {
+  CheckInCard,
+  ConversationPrompt,
+  NextEvent,
+  UpcomingBirthdays,
+} from "@/components/HomeWidgets";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Family feed — Family Circle" },
+      {
+        name: "description",
+        content:
+          "Your private family feed: news, photos, celebrations, birthdays and everyday moments in one place.",
+      },
+      { property: "og:title", content: "Family feed — Family Circle" },
+      {
+        property: "og:description",
+        content: "Share news, photos and everyday moments privately with your family.",
+      },
+    ],
+  }),
+  component: HomePage,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function HomePage() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <AppShell>
+      <div className="space-y-4">
+        <ConversationPrompt />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <UpcomingBirthdays />
+          <NextEvent />
+        </div>
+        <CheckInCard />
+        <div className="grid grid-cols-2 gap-3">
+          <Button asChild variant="outline" size="lg">
+            <Link to="/polls">
+              <Vote className="mr-2 size-5" /> Family polls
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <Link to="/appreciation">
+              <HeartHandshake className="mr-2 size-5" /> Appreciation
+            </Link>
+          </Button>
+        </div>
+
+        <PostComposer />
+
+        <Tabs defaultValue="all">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="all">Family feed</TabsTrigger>
+            <TabsTrigger value="highlights">Highlights</TabsTrigger>
+          </TabsList>
+          <TabsContent value="all" className="pt-4">
+            <PostFeed />
+          </TabsContent>
+          <TabsContent value="highlights" className="pt-4">
+            <PostFeed highlightsOnly />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AppShell>
   );
 }

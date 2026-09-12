@@ -47,6 +47,8 @@ export const POST_TYPES = [
   { value: "memory", label: "Memory from the past" },
 ] as const;
 
+export type PostTypeValue = (typeof POST_TYPES)[number]["value"];
+
 const MOODS = ["Happy", "Grateful", "Excited", "Cozy", "Tired", "Missing you"];
 export const REACTIONS = ["❤️", "😂", "🎉", "🙏", "🤗", "👍"];
 
@@ -112,7 +114,7 @@ export function PostComposer() {
           family_id: familyId,
           author_id: user.id,
           content: content.trim(),
-          post_type: postType as PostRow["post_type"],
+          post_type: postType as PostTypeValue,
           mood: mood === "none" ? null : mood,
         })
         .select("id")
