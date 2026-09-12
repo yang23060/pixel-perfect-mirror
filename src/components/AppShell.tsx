@@ -63,9 +63,11 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   useEffect(() => {
     if (loading) return;
     if (!session) {
-      void navigate({ to: "/auth", search: { next: pathname } });
+      const next = pathname.startsWith("/auth") ? "/" : pathname;
+      void navigate({ to: "/auth", search: { next } });
       return;
     }
+
     if (profileLoading || familyLoading) return;
     const needsOnboarding = !profile?.onboarded || memberships.length === 0;
     if (needsOnboarding) void navigate({ to: "/onboarding", search: { code: "" } });
