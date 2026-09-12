@@ -26,11 +26,17 @@ function ResetPasswordPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
-    if (password.length < 6) return toast.error("Use at least 6 characters.");
+    if (password.length < 6) {
+      toast.error("Use at least 6 characters.");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Password updated.");
     void navigate({ to: "/" });
   };

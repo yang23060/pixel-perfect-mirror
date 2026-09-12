@@ -171,8 +171,8 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
               <DropdownMenu>
                 <DropdownMenuTrigger aria-label="Your account">
                   <MemberAvatar
-                    name={profile?.display_name}
-                    avatarPath={profile?.avatar_url}
+                    name={profile?.display_name ?? null}
+                    avatarPath={profile?.avatar_url ?? null}
                     className="size-10"
                   />
                 </DropdownMenuTrigger>

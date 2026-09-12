@@ -12,7 +12,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
-    next: typeof search.next === "string" && search.next.startsWith("/") ? search.next : "/",
+    next:
+      typeof search["next"] === "string" && (search["next"] as string).startsWith("/")
+        ? (search["next"] as string)
+        : "/",
   }),
   head: () => ({
     meta: [
@@ -51,7 +54,10 @@ function AuthPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Welcome back!");
     void navigate({ to: next });
   };
@@ -59,8 +65,14 @@ function AuthPage() {
   const signUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
-    if (!displayName.trim()) return toast.error("Please enter your name.");
-    if (password.length < 6) return toast.error("Use a password with at least 6 characters.");
+    if (!displayName.trim()) {
+      toast.error("Please enter your name.");
+      return;
+    }
+    if (password.length < 6) {
+      toast.error("Use a password with at least 6 characters.");
+      return;
+    }
     setBusy(true);
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
@@ -71,7 +83,10 @@ function AuthPage() {
       },
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     if (!data.session) {
       toast.success("Check your email to confirm your account, then sign in.");
       setMode("signin");
@@ -82,11 +97,17 @@ function AuthPage() {
   };
 
   const resetPassword = async () => {
-    if (!email.trim()) return toast.error("Enter your email first.");
+    if (!email.trim()) {
+      toast.error("Enter your email first.");
+      return;
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("We sent you a password reset email.");
   };
 
