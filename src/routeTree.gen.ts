@@ -10,8 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppreciationRouteImport } from './routes/appreciation'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PollsRouteImport } from './routes/polls'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as JoinCodeRouteImport } from './routes/join.$code'
 
@@ -20,14 +24,34 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppreciationRoute = AppreciationRouteImport.update({
+  id: '/appreciation',
+  path: '/appreciation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PollsRoute = PollsRouteImport.update({
+  id: '/polls',
+  path: '/polls',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -43,44 +67,82 @@ const JoinCodeRoute = JoinCodeRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/appreciation': typeof AppreciationRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
+  '/polls': typeof PollsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/join/$code': typeof JoinCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/appreciation': typeof AppreciationRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
+  '/polls': typeof PollsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/join/$code': typeof JoinCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/appreciation': typeof AppreciationRoute
   '/auth': typeof AuthRoute
+  '/calendar': typeof CalendarRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
+  '/polls': typeof PollsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/join/$code': typeof JoinCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/onboarding' | '/reset-password' | '/join/$code'
+  fullPaths:
+    | '/'
+    | '/appreciation'
+    | '/auth'
+    | '/calendar'
+    | '/notifications'
+    | '/onboarding'
+    | '/polls'
+    | '/reset-password'
+    | '/join/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/onboarding' | '/reset-password' | '/join/$code'
+  to:
+    | '/'
+    | '/appreciation'
+    | '/auth'
+    | '/calendar'
+    | '/notifications'
+    | '/onboarding'
+    | '/polls'
+    | '/reset-password'
+    | '/join/$code'
   id:
     | '__root__'
     | '/'
+    | '/appreciation'
     | '/auth'
+    | '/calendar'
+    | '/notifications'
     | '/onboarding'
+    | '/polls'
     | '/reset-password'
     | '/join/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppreciationRoute: typeof AppreciationRoute
   AuthRoute: typeof AuthRoute
+  CalendarRoute: typeof CalendarRoute
+  NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
+  PollsRoute: typeof PollsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   JoinCodeRoute: typeof JoinCodeRoute
 }
@@ -94,6 +156,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/appreciation': {
+      id: '/appreciation'
+      path: '/appreciation'
+      fullPath: '/appreciation'
+      preLoaderRoute: typeof AppreciationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -101,11 +170,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/polls': {
+      id: '/polls'
+      path: '/polls'
+      fullPath: '/polls'
+      preLoaderRoute: typeof PollsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -127,8 +217,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppreciationRoute: AppreciationRoute,
   AuthRoute: AuthRoute,
+  CalendarRoute: CalendarRoute,
+  NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
+  PollsRoute: PollsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   JoinCodeRoute: JoinCodeRoute,
 }
