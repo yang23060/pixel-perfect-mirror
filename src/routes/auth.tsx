@@ -93,7 +93,7 @@ function AuthPage() {
       return;
     }
     toast.success("Account created!");
-    void navigate({ to: "/onboarding" });
+    void navigate({ to: "/onboarding", search: { code: "" } });
   };
 
   const resetPassword = async () => {

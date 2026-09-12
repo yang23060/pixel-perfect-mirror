@@ -108,7 +108,7 @@ function OnboardingPage() {
         if (!familyName.trim()) throw new Error("Please name your family.");
         const { data, error } = await supabase.rpc("create_family", {
           _name: familyName.trim(),
-          _cover_url: null,
+          _cover_url: null as unknown as string,
           _relationship: relationship,
         });
         if (error) throw error;

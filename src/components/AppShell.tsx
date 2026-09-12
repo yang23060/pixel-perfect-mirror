@@ -68,7 +68,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
     }
     if (profileLoading || familyLoading) return;
     const needsOnboarding = !profile?.onboarded || memberships.length === 0;
-    if (needsOnboarding) void navigate({ to: "/onboarding" });
+    if (needsOnboarding) void navigate({ to: "/onboarding", search: { code: "" } });
   }, [
     loading,
     session,
@@ -201,7 +201,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                   <DropdownMenuItem onClick={() => void navigate({ to: "/settings" })}>
                     Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => void navigate({ to: "/onboarding" })}>
+                  <DropdownMenuItem onClick={() => void navigate({ to: "/onboarding", search: { code: "" } })}>
                     Join or create a family
                   </DropdownMenuItem>
                   <DropdownMenuItem
