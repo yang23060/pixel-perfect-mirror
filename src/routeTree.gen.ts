@@ -13,10 +13,15 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppreciationRouteImport } from './routes/appreciation'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as ChatRouteImport } from './routes/chat'
+import { Route as FamilyRouteImport } from './routes/family'
+import { Route as MemoriesRouteImport } from './routes/memories'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PollsRouteImport } from './routes/polls'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as JoinCodeRouteImport } from './routes/join.$code'
 
 const IndexRoute = IndexRouteImport.update({
@@ -39,6 +44,21 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FamilyRoute = FamilyRouteImport.update({
+  id: '/family',
+  path: '/family',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MemoriesRoute = MemoriesRouteImport.update({
+  id: '/memories',
+  path: '/memories',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotificationsRoute = NotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -59,6 +79,16 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const JoinCodeRoute = JoinCodeRouteImport.update({
   id: '/join/$code',
   path: '/join/$code',
@@ -70,10 +100,15 @@ export interface FileRoutesByFullPath {
   '/appreciation': typeof AppreciationRoute
   '/auth': typeof AuthRoute
   '/calendar': typeof CalendarRoute
+  '/chat': typeof ChatRoute
+  '/family': typeof FamilyRoute
+  '/memories': typeof MemoriesRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/polls': typeof PollsRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/join/$code': typeof JoinCodeRoute
 }
 export interface FileRoutesByTo {
@@ -81,10 +116,15 @@ export interface FileRoutesByTo {
   '/appreciation': typeof AppreciationRoute
   '/auth': typeof AuthRoute
   '/calendar': typeof CalendarRoute
+  '/chat': typeof ChatRoute
+  '/family': typeof FamilyRoute
+  '/memories': typeof MemoriesRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/polls': typeof PollsRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/join/$code': typeof JoinCodeRoute
 }
 export interface FileRoutesById {
@@ -93,10 +133,15 @@ export interface FileRoutesById {
   '/appreciation': typeof AppreciationRoute
   '/auth': typeof AuthRoute
   '/calendar': typeof CalendarRoute
+  '/chat': typeof ChatRoute
+  '/family': typeof FamilyRoute
+  '/memories': typeof MemoriesRoute
   '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/polls': typeof PollsRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
   '/join/$code': typeof JoinCodeRoute
 }
 export interface FileRouteTypes {
@@ -106,10 +151,15 @@ export interface FileRouteTypes {
     | '/appreciation'
     | '/auth'
     | '/calendar'
+    | '/chat'
+    | '/family'
+    | '/memories'
     | '/notifications'
     | '/onboarding'
     | '/polls'
     | '/reset-password'
+    | '/search'
+    | '/settings'
     | '/join/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -117,10 +167,15 @@ export interface FileRouteTypes {
     | '/appreciation'
     | '/auth'
     | '/calendar'
+    | '/chat'
+    | '/family'
+    | '/memories'
     | '/notifications'
     | '/onboarding'
     | '/polls'
     | '/reset-password'
+    | '/search'
+    | '/settings'
     | '/join/$code'
   id:
     | '__root__'
@@ -128,10 +183,15 @@ export interface FileRouteTypes {
     | '/appreciation'
     | '/auth'
     | '/calendar'
+    | '/chat'
+    | '/family'
+    | '/memories'
     | '/notifications'
     | '/onboarding'
     | '/polls'
     | '/reset-password'
+    | '/search'
+    | '/settings'
     | '/join/$code'
   fileRoutesById: FileRoutesById
 }
@@ -140,10 +200,15 @@ export interface RootRouteChildren {
   AppreciationRoute: typeof AppreciationRoute
   AuthRoute: typeof AuthRoute
   CalendarRoute: typeof CalendarRoute
+  ChatRoute: typeof ChatRoute
+  FamilyRoute: typeof FamilyRoute
+  MemoriesRoute: typeof MemoriesRoute
   NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
   PollsRoute: typeof PollsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
   JoinCodeRoute: typeof JoinCodeRoute
 }
 
@@ -177,6 +242,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/family': {
+      id: '/family'
+      path: '/family'
+      fullPath: '/family'
+      preLoaderRoute: typeof FamilyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/memories': {
+      id: '/memories'
+      path: '/memories'
+      fullPath: '/memories'
+      preLoaderRoute: typeof MemoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notifications': {
       id: '/notifications'
       path: '/notifications'
@@ -205,6 +291,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/join/$code': {
       id: '/join/$code'
       path: '/join/$code'
@@ -220,10 +320,15 @@ const rootRouteChildren: RootRouteChildren = {
   AppreciationRoute: AppreciationRoute,
   AuthRoute: AuthRoute,
   CalendarRoute: CalendarRoute,
+  ChatRoute: ChatRoute,
+  FamilyRoute: FamilyRoute,
+  MemoriesRoute: MemoriesRoute,
   NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
   PollsRoute: PollsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SearchRoute: SearchRoute,
+  SettingsRoute: SettingsRoute,
   JoinCodeRoute: JoinCodeRoute,
 }
 export const routeTree = rootRouteImport
