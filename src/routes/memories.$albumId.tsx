@@ -569,6 +569,10 @@ function AlbumPage() {
                 {photos.map((p) => {
                   const hearts = engagement.data?.reactions.get(p.id) ?? 0;
                   const said = engagement.data?.comments.get(p.id) ?? 0;
+                  const preview = engagement.data?.previews.get(p.id) ?? null;
+                  const previewName = (id: string) =>
+                    members.find((m) => m.user_id === id)?.profile?.display_name ??
+                    "Family member";
                   return (
                     <button
                       key={p.id}
