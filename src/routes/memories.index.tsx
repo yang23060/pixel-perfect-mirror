@@ -58,7 +58,15 @@ type AlbumRow = {
   cover_url: string | null;
   created_by: string;
   created_at: string;
-  photos: { id: string; url: string; caption: string | null; is_favorite: boolean; kind: string; duration_seconds: number | null }[];
+  photos: {
+    id: string;
+    url: string;
+    caption: string | null;
+    is_favorite: boolean;
+    kind: string;
+    duration_seconds: number | null;
+    uploader_id: string;
+  }[];
 };
 
 type QueuedFile = {
