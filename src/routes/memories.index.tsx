@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { FamilyMedia } from "@/components/FamilyMedia";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
