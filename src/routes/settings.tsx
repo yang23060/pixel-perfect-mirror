@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
 import { uploadAvatar } from "@/lib/media";
@@ -74,7 +75,10 @@ function NotificationPrefsCard() {
     if (!user) return;
     const { error } = await supabase
       .from("notification_prefs")
-      .upsert({ user_id: user.id, [key]: value }, { onConflict: "user_id" });
+      .upsert(
+        { user_id: user.id, [key]: value } as { user_id: string } & Record<PrefKey, boolean>,
+        { onConflict: "user_id" },
+      );
     if (error) {
       toast.error(error.message);
       return;
