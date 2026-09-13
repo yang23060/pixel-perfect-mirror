@@ -22,6 +22,13 @@
       "when": 1789285255457,
       "tag": "0002_add_active_family_to_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789285760405,
+      "tag": "0003_moments_stories_attachments_media",
+      "breakpoints": true
     }
   ]
 }
