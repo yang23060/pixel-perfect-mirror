@@ -43,6 +43,13 @@
       "when": 1789286882534,
       "tag": "0005_move_creator_role_trigger_off_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789287108070,
+      "tag": "0006_tighten_function_execute_grants",
+      "breakpoints": true
     }
   ]
 }
