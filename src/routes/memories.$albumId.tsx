@@ -590,18 +590,40 @@ function AlbumPage() {
                       {p.is_favorite && (
                         <Star className="absolute right-1.5 top-1.5 size-4 fill-rose text-rose" />
                       )}
-                      {(hearts > 0 || said > 0) && (
-                        <span className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/60 to-transparent px-2 py-1 text-xs font-semibold text-white">
-                          {hearts > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Heart className="size-3 fill-current" />
-                              {hearts}
+                      {(hearts > 0 || said > 0 || preview) && (
+                        <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-gradient-to-t from-black/70 via-black/40 to-transparent px-2 py-1 text-xs text-white">
+                          {preview && (
+                            <span className="block space-y-0.5 font-normal">
+                              <span className="block truncate">
+                                <span className="font-semibold">
+                                  {previewName(preview.top.author_id)}
+                                </span>{" "}
+                                {preview.top.content}
+                              </span>
+                              {preview.reply && (
+                                <span className="block truncate pl-2 opacity-90">
+                                  <span className="font-semibold">
+                                    {previewName(preview.reply.author_id)}
+                                  </span>{" "}
+                                  {preview.reply.content}
+                                </span>
+                              )}
                             </span>
                           )}
-                          {said > 0 && (
-                            <span className="flex items-center gap-1">
-                              <MessageCircle className="size-3" />
-                              {said}
+                          {(hearts > 0 || said > 0) && (
+                            <span className="flex items-center gap-3 font-semibold">
+                              {hearts > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <Heart className="size-3 fill-current" />
+                                  {hearts}
+                                </span>
+                              )}
+                              {said > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <MessageCircle className="size-3" />
+                                  {said}
+                                </span>
+                              )}
                             </span>
                           )}
                         </span>
