@@ -26,6 +26,7 @@ import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
 import { uploadFamilyMedia, useSignedUrl } from "@/lib/media";
+import { shareMemoryToChat } from "@/lib/chat-share";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
