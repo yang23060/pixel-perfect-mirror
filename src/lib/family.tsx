@@ -111,8 +111,23 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       members: membersQuery.data ?? [],
       membersLoading: membersQuery.isLoading,
       setFamilyId: (id: string) => {
+        if (id === familyId) return;
         window.localStorage.setItem(STORAGE_KEY, id);
         setCurrentId(id);
+        // Drop the previous family's cached content so nothing bleeds across.
+        queryClient.removeQueries({
+          predicate: (q) => {
+            const key = q.queryKey[0];
+            return key !== "profile" && key !== "memberships";
+          },
+        });
+        if (user) {
+          void supabase
+            .from("profiles")
+            .update({ active_family_id: id })
+            .eq("id", user.id)
+            .then(() => queryClient.invalidateQueries({ queryKey: ["profile"] }));
+        }
       },
       refresh: () => {
         void membershipQuery.refetch();
