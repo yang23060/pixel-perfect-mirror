@@ -59,7 +59,7 @@ export const Route = createFileRoute("/memories/$albumId")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: AlbumPage;
+  component: AlbumPage,
 });
 
 type Photo = {
