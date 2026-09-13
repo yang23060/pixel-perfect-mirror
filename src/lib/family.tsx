@@ -134,7 +134,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
         void membersQuery.refetch();
       },
     }),
-    [memberships, membershipQuery, membersQuery, active, familyId],
+    [memberships, membershipQuery, membersQuery, active, familyId, queryClient, user],
   );
 
   return <FamilyContext.Provider value={value}>{children}</FamilyContext.Provider>;
