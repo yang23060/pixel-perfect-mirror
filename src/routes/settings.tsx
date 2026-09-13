@@ -237,6 +237,8 @@ function SettingsPage() {
           </Button>
         </form>
 
+        <NotificationPrefsCard />
+
         {isAdmin && (
           <div className="card-soft space-y-4 p-5">
             <h2 className="font-display text-xl">Family settings</h2>
