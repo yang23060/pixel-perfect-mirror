@@ -29,6 +29,27 @@
       "when": 1789285760405,
       "tag": "0003_moments_stories_attachments_media",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789286854725,
+      "tag": "0004_platform_admin_reports_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789286882534,
+      "tag": "0005_move_creator_role_trigger_off_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789287108070,
+      "tag": "0006_tighten_function_execute_grants",
+      "breakpoints": true
     }
   ]
 }

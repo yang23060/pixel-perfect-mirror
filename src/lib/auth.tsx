@@ -17,6 +17,8 @@ export type Profile = {
   share_contact: boolean;
   onboarded: boolean;
   active_family_id: string | null;
+  suspended_at: string | null;
+  suspended_reason: string | null;
 };
 
 type AuthContextValue = {

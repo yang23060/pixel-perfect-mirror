@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
       albums: {
         Row: {
           cover_url: string | null
@@ -240,6 +270,62 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_reports: {
+        Row: {
+          created_at: string
+          details: string | null
+          family_id: string | null
+          id: string
+          reason: string
+          reporter_id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          target_id: string | null
+          target_type: string
+          target_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          family_id?: string | null
+          id?: string
+          reason: string
+          reporter_id: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          target_id?: string | null
+          target_type: string
+          target_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          family_id?: string | null
+          id?: string
+          reason?: string
+          reporter_id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          target_id?: string | null
+          target_type?: string
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_reports_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
             referencedColumns: ["id"]
           },
         ]
@@ -1161,6 +1247,8 @@ export type Database = {
           id: string
           onboarded: boolean
           share_contact: boolean
+          suspended_at: string | null
+          suspended_reason: string | null
           timezone: string | null
           updated_at: string
         }
@@ -1178,6 +1266,8 @@ export type Database = {
           id: string
           onboarded?: boolean
           share_contact?: boolean
+          suspended_at?: string | null
+          suspended_reason?: string | null
           timezone?: string | null
           updated_at?: string
         }
@@ -1195,6 +1285,8 @@ export type Database = {
           id?: string
           onboarded?: boolean
           share_contact?: boolean
+          suspended_at?: string | null
+          suspended_reason?: string | null
           timezone?: string | null
           updated_at?: string
         }
@@ -1324,6 +1416,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1334,6 +1447,13 @@ export type Database = {
         Args: { _cover_url: string; _name: string; _relationship: string }
         Returns: string
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_family_admin: { Args: { _family: string }; Returns: boolean }
       is_family_member: { Args: { _family: string }; Returns: boolean }
       join_family_with_code: {
@@ -1343,6 +1463,7 @@ export type Database = {
       shares_family_with: { Args: { _user: string }; Returns: boolean }
     }
     Enums: {
+      app_role: "platform_admin" | "moderator" | "user"
       checkin_status: "great" | "good" | "okay" | "tired" | "need_support"
       event_category:
         | "birthday"
@@ -1489,6 +1610,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["platform_admin", "moderator", "user"],
       checkin_status: ["great", "good", "okay", "tired", "need_support"],
       event_category: [
         "birthday",

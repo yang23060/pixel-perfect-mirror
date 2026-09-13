@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
+import { usePlatformAdmin } from "@/lib/roles";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,6 +60,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const unread = useUnreadNotifications();
+  const { isPlatformAdmin } = usePlatformAdmin();
 
   useEffect(() => {
     if (loading) return;
@@ -88,6 +90,27 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
         <Skeleton className="h-12 w-2/3" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+
+  if (profile?.suspended_at) {
+    return (
+      <div className="mx-auto max-w-md space-y-4 p-8 text-center">
+        <h1 className="font-display text-2xl">Your account is paused</h1>
+        <p className="text-muted-foreground">
+          {profile.suspended_reason
+            ? `Reason given: ${profile.suspended_reason}`
+            : "Please get in touch if you think this is a mistake."}
+        </p>
+        <Button
+          onClick={async () => {
+            await signOut();
+            void navigate({ to: "/auth", search: { next: "/" } });
+          }}
+        >
+          Log out
+        </Button>
       </div>
     );
   }
@@ -203,6 +226,11 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                   <DropdownMenuItem onClick={() => void navigate({ to: "/families" })}>
                     My families
                   </DropdownMenuItem>
+                  {isPlatformAdmin && (
+                    <DropdownMenuItem onClick={() => void navigate({ to: "/admin" })}>
+                      Creator dashboard
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => void navigate({ to: "/settings" })}>
                     Settings
                   </DropdownMenuItem>

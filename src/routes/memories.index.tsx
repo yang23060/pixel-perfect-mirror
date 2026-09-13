@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { FamilyMedia } from "@/components/FamilyMedia";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
@@ -58,7 +59,15 @@ type AlbumRow = {
   cover_url: string | null;
   created_by: string;
   created_at: string;
-  photos: { id: string; url: string; caption: string | null; is_favorite: boolean; kind: string; duration_seconds: number | null }[];
+  photos: {
+    id: string;
+    url: string;
+    caption: string | null;
+    is_favorite: boolean;
+    kind: string;
+    duration_seconds: number | null;
+    uploader_id: string;
+  }[];
 };
 
 type QueuedFile = {
@@ -299,6 +308,33 @@ function NewAlbumDialog() {
   );
 }
 
+/** Faces of everyone who added something to an album. */
+function Contributors({ ids }: { ids: string[] }) {
+  const { members } = useFamily();
+  const unique = Array.from(new Set(ids));
+  if (unique.length === 0) return null;
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <div className="flex -space-x-2">
+        {unique.slice(0, 4).map((id) => {
+          const p = members.find((m) => m.user_id === id)?.profile ?? null;
+          return (
+            <MemberAvatar
+              key={id}
+              name={p?.display_name ?? "Family member"}
+              avatarPath={p?.avatar_url ?? null}
+              className="size-7 ring-2 ring-card"
+            />
+          );
+        })}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {unique.length} contributor{unique.length === 1 ? "" : "s"}
+      </p>
+    </div>
+  );
+}
+
 function MemoriesPage() {
   const { familyId, isAdmin } = useFamily();
   const { user } = useAuth();
@@ -311,7 +347,7 @@ function MemoriesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("albums")
-        .select("*, photos(id, url, caption, is_favorite, kind, duration_seconds)")
+        .select("*, photos(id, url, caption, is_favorite, kind, duration_seconds, uploader_id)")
         .eq("family_id", familyId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -410,8 +446,9 @@ function MemoriesPage() {
                   )}
                 </div>
                 {a.description && <p className="mt-2">{a.description}</p>}
+                <Contributors ids={a.photos.map((p) => p.uploader_id)} />
                 {a.photos.length > 1 && (
-                  <div className="mt-3 grid grid-cols-3 gap-1.5">
+                  <div className="mt-3 grid grid-cols-3 gap-1">
                     {a.photos.slice(0, 6).map((p) => (
                       <FamilyMedia
                         key={p.id}
@@ -419,7 +456,7 @@ function MemoriesPage() {
                         kind={p.kind}
                         durationSeconds={p.duration_seconds}
                         alt={p.caption ?? "Family photo"}
-                        className="aspect-square w-full rounded-lg"
+                        className="aspect-square w-full rounded-md"
                       />
                     ))}
                   </div>
