@@ -545,6 +545,7 @@ function MemoriesPage() {
                 </div>
                 {a.description && <p className="mt-2">{a.description}</p>}
                 <Contributors ids={a.photos.map((p) => p.uploader_id)} />
+                <AlbumEngagement album={a} />
                 {a.photos.length > 1 && (
                   <div className="mt-3 grid grid-cols-3 gap-1">
                     {a.photos.slice(0, 6).map((p) => (
