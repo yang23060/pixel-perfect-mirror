@@ -12,6 +12,7 @@ import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
 import { uploadFamilyMedia, validateMedia } from "@/lib/media";
+import { shareMemoryToChat } from "@/lib/chat-share";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -123,7 +124,8 @@ function NewAlbumDialog() {
   };
 
   const uploadInto = async (albumId: string, indexes: number[]) => {
-    if (!familyId || !user) return;
+    const uploaded: { path: string; kind: string }[] = [];
+    if (!familyId || !user) return uploaded;
     for (const i of indexes) {
       const item = queue[i];
       if (!item) continue;
@@ -146,6 +148,7 @@ function NewAlbumDialog() {
         if (i === coverIndex && up.kind === "image") {
           await supabase.from("albums").update({ cover_url: up.path }).eq("id", albumId);
         }
+        uploaded.push({ path: up.path, kind: up.kind });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Upload failed";
         setQueue((prev) =>
@@ -153,6 +156,7 @@ function NewAlbumDialog() {
         );
       }
     }
+    return uploaded;
   };
 
   const [albumId, setAlbumId] = useState<string | null>(null);
@@ -186,13 +190,19 @@ function NewAlbumDialog() {
       const pendingIndexes = queue
         .map((q, i) => (q.status === "done" ? -1 : i))
         .filter((i) => i >= 0);
-      await uploadInto(id, pendingIndexes);
+      const uploaded = await uploadInto(id, pendingIndexes);
       const stillFailed = queue.some((q) => q.status === "failed");
       void queryClient.invalidateQueries({ queryKey: ["albums"] });
       if (stillFailed) {
         toast.error("Some files didn't upload. Tap “Retry failed” to try again.");
         return;
       }
+      void shareMemoryToChat({
+        familyId,
+        senderId: user.id,
+        text: `📸 New memory: “${title.trim()}”`,
+        media: uploaded,
+      });
       toast.success("Album created.");
       setOpen(false);
       setTitle("");

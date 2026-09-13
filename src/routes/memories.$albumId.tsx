@@ -26,6 +26,7 @@ import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
 import { uploadFamilyMedia, useSignedUrl } from "@/lib/media";
+import { shareMemoryToChat } from "@/lib/chat-share";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -731,6 +732,7 @@ function AlbumPage() {
   const addPhotos = async (files: FileList | null) => {
     if (!files?.length || !familyId || !user) return;
     setUploading(true);
+    const uploaded: { path: string; kind: string }[] = [];
     try {
       for (let i = 0; i < files.length; i++) {
         const up = await uploadFamilyMedia(familyId, "albums", files[i]!);
@@ -744,6 +746,15 @@ function AlbumPage() {
           position: allPhotos.length + i,
         });
         if (pErr) throw pErr;
+        uploaded.push({ path: up.path, kind: up.kind });
+      }
+      if (uploaded.length) {
+        void shareMemoryToChat({
+          familyId,
+          senderId: user.id,
+          text: `📸 ${uploaded.length === 1 ? "A new photo was" : `${uploaded.length} new photos were`} added to “${data?.title ?? "a memory"}”`,
+          media: uploaded,
+        });
       }
       toast.success(files.length === 1 ? "Item added." : "Items added.");
       refresh();
