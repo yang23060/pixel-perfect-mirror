@@ -310,24 +310,58 @@ function PhotoViewer({
           {comments.data?.length === 0 && (
             <p className="text-sm text-muted-foreground">No comments yet.</p>
           )}
-          {comments.data?.map((c) => (
-            <div key={c.id} className="flex gap-3">
-              <MemberAvatar
-                name={nameFor(c.author_id)}
-                avatarPath={avatarFor(c.author_id)}
-                className="size-9"
-              />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">{nameFor(c.author_id)}</p>
-                <p className="break-words">{c.content}</p>
+          {topLevel.map((c) => (
+            <div key={c.id} className="space-y-2">
+              <div className="flex gap-3">
+                <MemberAvatar
+                  name={nameFor(c.author_id)}
+                  avatarPath={avatarFor(c.author_id)}
+                  className="size-9"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{nameFor(c.author_id)}</p>
+                  <p className="break-words">{c.content}</p>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    onClick={() => setReplyTo(c.id)}
+                  >
+                    Reply
+                  </button>
+                </div>
               </div>
+              {repliesFor(c.id).map((r) => (
+                <div key={r.id} className="flex gap-3 pl-8">
+                  <MemberAvatar
+                    name={nameFor(r.author_id)}
+                    avatarPath={avatarFor(r.author_id)}
+                    className="size-7"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{nameFor(r.author_id)}</p>
+                    <p className="break-words">{r.content}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
+          {replyTarget && (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              Replying to {nameFor(replyTarget.author_id)}
+              <button
+                type="button"
+                className="font-semibold underline"
+                onClick={() => setReplyTo(null)}
+              >
+                Cancel
+              </button>
+            </p>
+          )}
           <div className="flex gap-2">
             <Input
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Write a comment…"
+              placeholder={replyTarget ? "Write a reply…" : "Write a comment…"}
               aria-label="Write a comment"
             />
             <Button onClick={() => void addComment()} disabled={busy || !comment.trim()}>
