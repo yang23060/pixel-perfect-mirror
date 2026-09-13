@@ -59,6 +59,15 @@ type Photo = {
   position: number | null;
 };
 
+type PhotoComment = {
+  id: string;
+  photo_id: string;
+  content: string;
+  author_id: string;
+  reply_to: string | null;
+  created_at: string;
+};
+
 type Album = {
   id: string;
   title: string;
