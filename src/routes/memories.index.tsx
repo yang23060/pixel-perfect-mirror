@@ -307,6 +307,33 @@ function NewAlbumDialog() {
   );
 }
 
+/** Faces of everyone who added something to an album. */
+function Contributors({ ids }: { ids: string[] }) {
+  const { members } = useFamily();
+  const unique = Array.from(new Set(ids));
+  if (unique.length === 0) return null;
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <div className="flex -space-x-2">
+        {unique.slice(0, 4).map((id) => {
+          const p = members.find((m) => m.user_id === id)?.profile ?? null;
+          return (
+            <MemberAvatar
+              key={id}
+              name={p?.display_name ?? "Family member"}
+              avatarPath={p?.avatar_url ?? null}
+              className="size-7 ring-2 ring-card"
+            />
+          );
+        })}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {unique.length} contributor{unique.length === 1 ? "" : "s"}
+      </p>
+    </div>
+  );
+}
+
 function MemoriesPage() {
   const { familyId, isAdmin } = useFamily();
   const { user } = useAuth();
