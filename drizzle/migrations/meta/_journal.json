@@ -57,6 +57,13 @@
       "when": 1789300557648,
       "tag": "0007_harden_security_definer_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789302429919,
+      "tag": "0008_fix_role_escalation_and_suspension_bypass",
+      "breakpoints": true
     }
   ]
 }
