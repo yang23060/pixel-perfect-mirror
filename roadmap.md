@@ -11,4 +11,11 @@ Order: event bug first, then stages 1-6 and 8-10 in listed order.
 - [x] 6. Instagram-inspired album grid + album detail (square 3-col grid, contributors, reactions, comments, Add yours)
 - [x] 8. Platform-creator admin dashboard (user_roles + has_role, metrics, reports, suspend, audit log) — creator: victoriayangchihhan@gmail.com
 - [x] 9. Storage/security review (private buckets verified, RLS + policies on every table, function EXECUTE grants tightened)
-- [ ] 10. End-to-end testing + final report
+- [x] 10. End-to-end testing + final report (all pages + write flows exercised as a signed-in member; isolation and privilege-escalation probes run as a non-admin member; no console errors; typecheck clean)
+
+## Open items (not code defects)
+- GitHub sync is not connected — version history is Lovable-internal only.
+- Post-level reporting not implemented (photo/album reporting exists).
+- Event dialog fields rely on placeholders rather than visible labels.
+- Creating an event in a future month does not move the calendar to that month.
+- E2E test rows remain in the Yang Family test account (post, poll, event, message, appreciation, check-in, comment).
