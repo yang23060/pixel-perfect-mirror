@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import { Heart, ImagePlus, MessageCircle, MoreHorizontal, Star, Trash2, X } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { Heart, ImagePlus, MapPin, MessageCircle, MoreHorizontal, Plus, Star, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useFamily, type Member } from "@/lib/family";
-import { uploadFamilyImage } from "@/lib/media";
-import { FamilyImage } from "@/components/FamilyImage";
+import { uploadFamilyMedia } from "@/lib/media";
+import { FamilyMedia, MediaLightbox, useLightbox } from "@/components/FamilyMedia";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,15 @@ export type PostTypeValue = (typeof POST_TYPES)[number]["value"];
 const MOODS = ["Happy", "Grateful", "Excited", "Cozy", "Tired", "Missing you"];
 export const REACTIONS = ["❤️", "😂", "🎉", "🙏", "🤗", "👍"];
 
+export type PostMedia = {
+  id: string;
+  url: string;
+  kind: string;
+  duration_seconds: number | null;
+  position: number;
+  uploader_id: string;
+};
+
 export type PostRow = {
   id: string;
   family_id: string;
@@ -59,9 +68,12 @@ export type PostRow = {
   content: string;
   post_type: string;
   mood: string | null;
+  title: string | null;
+  event_date: string | null;
+  location: string | null;
   is_highlight: boolean;
   created_at: string;
-  post_images: { id: string; url: string; position: number }[];
+  post_media: PostMedia[];
   comments: { id: string; author_id: string; content: string; created_at: string }[];
   reactions: { id: string; user_id: string; emoji: string }[];
   post_mentions: { user_id: string }[];
@@ -74,7 +86,7 @@ export function usePosts(familyId: string | null, options?: { highlightsOnly?: b
     queryFn: async () => {
       let q = supabase
         .from("posts")
-        .select("*, post_images(*), comments(*), reactions(*), post_mentions(user_id)")
+        .select("*, post_media(*), comments(*), reactions(*), post_mentions(user_id)")
         .eq("family_id", familyId!)
         .order("created_at", { ascending: false })
         .limit(60);
@@ -98,22 +110,30 @@ export function PostComposer() {
   const { familyId, members } = useFamily();
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [location, setLocation] = useState("");
   const [postType, setPostType] = useState("update");
   const [mood, setMood] = useState("none");
   const [files, setFiles] = useState<File[]>([]);
   const [mentions, setMentions] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
+  const [uploaded, setUploaded] = useState(0);
 
   const create = useMutation({
     mutationFn: async () => {
       if (!familyId || !user) throw new Error("No family selected");
-      if (!content.trim()) throw new Error("Write something first.");
+      if (!content.trim() && !title.trim() && files.length === 0)
+        throw new Error("Write something or add a photo first.");
       const { data, error } = await supabase
         .from("posts")
         .insert({
           family_id: familyId,
           author_id: user.id,
           content: content.trim(),
+          title: title.trim() || null,
+          event_date: eventDate || null,
+          location: location.trim() || null,
           post_type: postType as PostTypeValue,
           mood: mood === "none" ? null : mood,
         })
@@ -121,12 +141,20 @@ export function PostComposer() {
         .single();
       if (error) throw error;
       const postId = data.id;
+      setUploaded(0);
       for (let i = 0; i < files.length; i++) {
-        const path = await uploadFamilyImage(familyId, "posts", files[i]!);
-        const { error: imgErr } = await supabase
-          .from("post_images")
-          .insert({ post_id: postId, family_id: familyId, url: path, position: i });
-        if (imgErr) throw imgErr;
+        const media = await uploadFamilyMedia(familyId, "posts", files[i]!);
+        const { error: mErr } = await supabase.from("post_media").insert({
+          post_id: postId,
+          family_id: familyId,
+          uploader_id: user.id,
+          url: media.path,
+          kind: media.kind,
+          duration_seconds: media.duration,
+          position: i,
+        });
+        if (mErr) throw mErr;
+        setUploaded(i + 1);
       }
       if (mentions.length) {
         await supabase
@@ -139,7 +167,7 @@ export function PostComposer() {
             actor_id: user.id,
             type: "mention",
             title: "You were mentioned in a post",
-            body: content.trim().slice(0, 120),
+            body: (title || content).trim().slice(0, 120),
             link: "/",
           })),
         );
@@ -154,7 +182,7 @@ export function PostComposer() {
               actor_id: user.id,
               type: "announcement",
               title: "New family announcement",
-              body: content.trim().slice(0, 120),
+              body: (title || content).trim().slice(0, 120),
               link: "/",
             })),
           );
@@ -163,11 +191,15 @@ export function PostComposer() {
     },
     onSuccess: () => {
       setContent("");
+      setTitle("");
+      setEventDate("");
+      setLocation("");
       setFiles([]);
       setMentions([]);
       setMood("none");
       setPostType("update");
       setOpen(false);
+      setUploaded(0);
       toast.success("Shared with your family.");
       void queryClient.invalidateQueries({ queryKey: ["posts"] });
     },
@@ -185,13 +217,50 @@ export function PostComposer() {
           value={content}
           onFocus={() => setOpen(true)}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="Share something with your family…"
+          placeholder="Share a moment with your family…"
           className="min-h-[52px] flex-1 resize-none bg-muted/50 text-base"
         />
       </div>
 
       {open && (
         <div className="mt-4 space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-semibold" htmlFor="post-title">
+              Moment title (optional)
+            </label>
+            <Input
+              id="post-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Grandma's birthday dinner 🎂"
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-semibold" htmlFor="post-date">
+                When
+              </label>
+              <Input
+                id="post-date"
+                type="date"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-semibold" htmlFor="post-place">
+                Where
+              </label>
+              <Input
+                id="post-place"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Taipei"
+              />
+            </div>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <Select value={postType} onValueChange={setPostType}>
               <SelectTrigger aria-label="Post type">
@@ -221,15 +290,21 @@ export function PostComposer() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-semibold">Photos</label>
+            <label className="mb-1 block text-sm font-semibold" htmlFor="post-media">
+              Photos & videos
+            </label>
             <Input
+              id="post-media"
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
               onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
             />
             {files.length > 0 && (
-              <p className="mt-1 text-sm text-muted-foreground">{files.length} photo(s) selected</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {files.length} file(s) selected
+                {create.isPending ? ` · uploading ${uploaded}/${files.length}` : ""}
+              </p>
             )}
           </div>
 
@@ -280,20 +355,158 @@ export function PostComposer() {
   );
 }
 
+/** Collage: one large tile plus two stacked tiles, with +N on the last. */
+function MomentCollage({
+  media,
+  onOpen,
+}: {
+  media: PostMedia[];
+  onOpen: (index: number) => void;
+}) {
+  if (media.length === 0) return null;
+  if (media.length === 1) {
+    const first = media[0]!;
+    return (
+      <FamilyMedia
+        path={first.url}
+        kind={first.kind}
+        durationSeconds={first.duration_seconds}
+        alt="Family moment"
+        onClick={() => onOpen(0)}
+        className="mt-3 h-64 w-full rounded-2xl sm:h-80"
+      />
+    );
+  }
+  const [first, second, third] = media;
+  const extra = media.length - 3;
+  return (
+    <div className="mt-3 grid h-64 grid-cols-3 gap-1.5 sm:h-80">
+      <FamilyMedia
+        path={first!.url}
+        kind={first!.kind}
+        durationSeconds={first!.duration_seconds}
+        alt="Family moment"
+        onClick={() => onOpen(0)}
+        className="col-span-2 h-full rounded-l-2xl"
+      />
+      <div className="grid h-full grid-rows-2 gap-1.5">
+        <FamilyMedia
+          path={second!.url}
+          kind={second!.kind}
+          durationSeconds={second!.duration_seconds}
+          alt="Family moment"
+          onClick={() => onOpen(1)}
+          className="h-full rounded-tr-2xl"
+        />
+        {third ? (
+          <div className="relative h-full">
+            <FamilyMedia
+              path={third.url}
+              kind={third.kind}
+              alt="Family moment"
+              onClick={() => onOpen(2)}
+              className="h-full rounded-br-2xl"
+            />
+            {extra > 0 && (
+              <button
+                onClick={() => onOpen(2)}
+                className="absolute inset-0 flex items-center justify-center rounded-br-2xl bg-black/50 text-xl font-semibold text-white"
+                aria-label={`View ${extra} more`}
+              >
+                +{extra}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="h-full rounded-br-2xl bg-muted" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Contributors({ ids, members }: { ids: string[]; members: Member[] }) {
+  if (ids.length === 0) return null;
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <div className="flex -space-x-2">
+        {ids.slice(0, 4).map((id) => (
+          <MemberAvatar
+            key={id}
+            name={memberName(members, id)}
+            avatarPath={memberAvatar(members, id)}
+            className="size-8 border-2 border-card"
+          />
+        ))}
+      </div>
+      <span className="text-sm text-muted-foreground">
+        {ids.length} contributor{ids.length === 1 ? "" : "s"}
+      </span>
+    </div>
+  );
+}
+
 export function PostCard({ post }: { post: PostRow }) {
   const { user } = useAuth();
-  const { members, isAdmin } = useFamily();
+  const { members, isAdmin, familyId } = useFamily();
   const queryClient = useQueryClient();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(post.content);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const addRef = useRef<HTMLInputElement | null>(null);
+  const lightbox = useLightbox();
 
   const mine = post.author_id === user?.id;
   const canManage = mine || isAdmin;
   const myReaction = post.reactions.find((r) => r.user_id === user?.id);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["posts"] });
+
+  const media = [...post.post_media].sort(
+    (a, b) => a.position - b.position || a.id.localeCompare(b.id),
+  );
+  const contributorIds = Array.from(new Set([post.author_id, ...media.map((m) => m.uploader_id)]));
+
+  const addYours = async (files: File[]) => {
+    if (!user || !familyId || files.length === 0) return;
+    setAdding(true);
+    try {
+      let position = media.length;
+      for (const file of files) {
+        const up = await uploadFamilyMedia(post.family_id, "posts", file);
+        const { error } = await supabase.from("post_media").insert({
+          post_id: post.id,
+          family_id: post.family_id,
+          uploader_id: user.id,
+          url: up.path,
+          kind: up.kind,
+          duration_seconds: up.duration,
+          position: position++,
+        });
+        if (error) throw error;
+      }
+      if (post.author_id !== user.id) {
+        await supabase.from("notifications").insert({
+          family_id: post.family_id,
+          user_id: post.author_id,
+          actor_id: user.id,
+          type: "post_media",
+          title: "Someone added photos to your moment",
+          body: post.title ?? post.content.slice(0, 120),
+          link: "/",
+        });
+      }
+      toast.success("Added to this moment.");
+      void invalidate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not add your photos.");
+    } finally {
+      setAdding(false);
+      if (addRef.current) addRef.current.value = "";
+    }
+  };
 
   const react = async (emoji: string) => {
     if (!user) return;
@@ -395,6 +608,8 @@ export function PostCard({ post }: { post: PostRow }) {
   };
 
   const typeLabel = POST_TYPES.find((t) => t.value === post.post_type)?.label ?? "Update";
+  const totalReactions = post.reactions.length;
+  const when = post.event_date ? format(new Date(`${post.event_date}T12:00:00`), "EEEE, MMMM d") : null;
 
   return (
     <article className="card-soft p-4">
@@ -432,6 +647,16 @@ export function PostCard({ post }: { post: PostRow }) {
         </div>
       </header>
 
+      <MomentCollage media={media} onOpen={lightbox.open} />
+
+      {post.title && <h3 className="mt-3 font-display text-xl leading-snug">{post.title}</h3>}
+      {(when || post.location) && (
+        <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+          {post.location && <MapPin className="size-3.5" />}
+          {[when, post.location].filter(Boolean).join(" · ")}
+        </p>
+      )}
+
       {editing ? (
         <div className="mt-3 space-y-2">
           <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} />
@@ -443,7 +668,9 @@ export function PostCard({ post }: { post: PostRow }) {
           </div>
         </div>
       ) : (
-        <p className="mt-3 whitespace-pre-wrap text-[1.05rem] leading-relaxed">{post.content}</p>
+        post.content && (
+          <p className="mt-2 whitespace-pre-wrap text-[1.05rem] leading-relaxed">{post.content}</p>
+        )
       )}
 
       {post.post_mentions.length > 0 && (
@@ -452,22 +679,7 @@ export function PostCard({ post }: { post: PostRow }) {
         </p>
       )}
 
-      {post.post_images.length > 0 && (
-        <div
-          className={`mt-3 grid gap-2 ${post.post_images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
-        >
-          {[...post.post_images]
-            .sort((a, b) => a.position - b.position)
-            .map((img) => (
-              <FamilyImage
-                key={img.id}
-                path={img.url}
-                alt="Family photo"
-                className="h-48 w-full rounded-xl sm:h-60"
-              />
-            ))}
-        </div>
-      )}
+      {media.length > 0 && <Contributors ids={contributorIds} members={members} />}
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {REACTIONS.map((emoji) => {
@@ -487,12 +699,34 @@ export function PostCard({ post }: { post: PostRow }) {
             </button>
           );
         })}
+      </div>
+
+      <div className="mt-3 flex items-center gap-4 border-t border-border pt-3 text-muted-foreground">
+        <span className="flex items-center gap-1.5 font-semibold">
+          <Heart className={`size-4 ${totalReactions ? "fill-rose text-rose" : ""}`} /> {totalReactions}
+        </span>
         <button
           onClick={() => setShowComments((v) => !v)}
-          className="ml-auto flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold text-muted-foreground hover:bg-muted"
+          className="flex items-center gap-1.5 font-semibold hover:text-foreground"
         >
           <MessageCircle className="size-4" /> {post.comments.length}
         </button>
+        <button
+          onClick={() => addRef.current?.click()}
+          disabled={adding}
+          className="ml-auto flex items-center gap-1 rounded-full border border-border px-3 py-1 font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+        >
+          <Plus className="size-4" /> {adding ? "Adding…" : "Add yours"}
+        </button>
+        <input
+          ref={addRef}
+          type="file"
+          accept="image/*,video/*"
+          multiple
+          className="hidden"
+          aria-label="Add your photos to this moment"
+          onChange={(e) => void addYours(Array.from(e.target.files ?? []))}
+        />
       </div>
 
       {showComments && (
@@ -543,6 +777,13 @@ export function PostCard({ post }: { post: PostRow }) {
           </div>
         </div>
       )}
+
+      <MediaLightbox
+        items={media}
+        index={lightbox.index}
+        onClose={lightbox.close}
+        onIndexChange={lightbox.setIndex}
+      />
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
