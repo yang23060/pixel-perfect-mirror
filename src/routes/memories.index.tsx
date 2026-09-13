@@ -147,6 +147,7 @@ function NewAlbumDialog() {
         if (i === coverIndex && up.kind === "image") {
           await supabase.from("albums").update({ cover_url: up.path }).eq("id", albumId);
         }
+        uploaded.push({ path: up.path, kind: up.kind });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Upload failed";
         setQueue((prev) =>
@@ -154,6 +155,7 @@ function NewAlbumDialog() {
         );
       }
     }
+    return uploaded;
   };
 
   const [albumId, setAlbumId] = useState<string | null>(null);
