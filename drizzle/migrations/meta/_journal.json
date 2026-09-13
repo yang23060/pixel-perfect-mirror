@@ -64,6 +64,13 @@
       "when": 1789302429919,
       "tag": "0008_fix_role_escalation_and_suspension_bypass",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789303055587,
+      "tag": "0009_restrict_photos_update",
+      "breakpoints": true
     }
   ]
 }
