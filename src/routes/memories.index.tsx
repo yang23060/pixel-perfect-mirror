@@ -23,6 +23,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/memories/")({
   head: () => ({
@@ -223,30 +234,55 @@ function MemoriesPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {albums.map((a) => (
             <div key={a.id} className="card-soft overflow-hidden">
-              {a.cover_url ? (
-                <FamilyImage path={a.cover_url} alt={a.title} className="h-44 w-full" />
-              ) : (
-                <div className="flex h-44 items-center justify-center bg-muted text-muted-foreground">
-                  <Images className="size-8" />
-                </div>
-              )}
+              <Link to="/memories/$albumId" params={{ albumId: a.id }} className="block">
+                {a.cover_url ? (
+                  <FamilyImage path={a.cover_url} alt={a.title} className="h-44 w-full" />
+                ) : (
+                  <div className="flex h-44 items-center justify-center bg-muted text-muted-foreground">
+                    <Images className="size-8" />
+                  </div>
+                )}
+              </Link>
               <div className="p-4">
                 <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
+                  <Link
+                    to="/memories/$albumId"
+                    params={{ albumId: a.id }}
+                    className="min-w-0 flex-1"
+                  >
                     <h3 className="truncate font-display text-lg">{a.title}</h3>
                     <p className="text-sm text-muted-foreground">
                       {a.photos.length} photo{a.photos.length === 1 ? "" : "s"}
                       {a.event_date ? ` · ${format(new Date(a.event_date), "d MMM yyyy")}` : ""}
                     </p>
-                  </div>
+                  </Link>
                   {(a.created_by === user?.id || isAdmin) && (
-                    <button
-                      aria-label="Delete album"
-                      onClick={() => void removeAlbum(a.id)}
-                      className="p-1.5 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          aria-label="Delete album"
+                          className="p-1.5 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete this album?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            “{a.title}” and its {a.photos.length} photo
+                            {a.photos.length === 1 ? "" : "s"} will be removed for everyone. This
+                            cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Keep album</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => void removeAlbum(a.id)}>
+                            Delete album
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
                 {a.description && <p className="mt-2">{a.description}</p>}
