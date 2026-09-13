@@ -6,12 +6,12 @@ import { ArrowLeft, Heart, ImagePlus, Images, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
-import { FamilyImage } from "@/components/FamilyImage";
+import { FamilyMedia } from "@/components/FamilyMedia";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
-import { uploadFamilyImage } from "@/lib/media";
+import { uploadFamilyMedia } from "@/lib/media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -51,6 +51,8 @@ type Photo = {
   url: string;
   caption: string | null;
   is_favorite: boolean;
+  kind: string;
+  duration_seconds: number | null;
   uploader_id: string;
   taken_at: string | null;
   created_at: string;
@@ -161,8 +163,10 @@ function PhotoViewer({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
         <DialogTitle className="sr-only">Photo</DialogTitle>
-        <FamilyImage
+        <FamilyMedia
           path={photo.url}
+          kind={photo.kind}
+          durationSeconds={photo.duration_seconds}
           alt={photo.caption ?? "Family photo"}
           className="max-h-[52vh] w-full rounded-xl"
         />
@@ -273,7 +277,7 @@ function AlbumPage() {
       const { data, error } = await supabase
         .from("albums")
         .select(
-          "id, title, description, event_date, cover_url, created_by, photos(id, url, caption, is_favorite, uploader_id, taken_at, created_at)",
+          "id, title, description, event_date, cover_url, created_by, photos(id, url, caption, is_favorite, kind, duration_seconds, uploader_id, taken_at, created_at)",
         )
         .eq("id", albumId)
         .maybeSingle();
@@ -292,12 +296,14 @@ function AlbumPage() {
     setUploading(true);
     try {
       for (let i = 0; i < files.length; i++) {
-        const path = await uploadFamilyImage(familyId, "albums", files[i]!);
+        const up = await uploadFamilyMedia(familyId, "albums", files[i]!);
         const { error: pErr } = await supabase.from("photos").insert({
           album_id: albumId,
           family_id: familyId,
           uploader_id: user.id,
-          url: path,
+          url: up.path,
+          kind: up.kind,
+          duration_seconds: up.duration,
         });
         if (pErr) throw pErr;
       }
@@ -355,7 +361,7 @@ function AlbumPage() {
               <input
                 ref={fileInput}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 multiple
                 className="hidden"
                 aria-label="Add photos"
@@ -389,8 +395,10 @@ function AlbumPage() {
                     className="relative overflow-hidden rounded-xl"
                     aria-label={p.caption ?? "Open photo"}
                   >
-                    <FamilyImage
+                    <FamilyMedia
                       path={p.url}
+                      kind={p.kind}
+                      durationSeconds={p.duration_seconds}
                       alt={p.caption ?? "Family photo"}
                       className="aspect-square w-full"
                     />

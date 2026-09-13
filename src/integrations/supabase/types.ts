@@ -457,6 +457,51 @@ export type Database = {
           },
         ]
       }
+      message_attachments: {
+        Row: {
+          created_at: string
+          family_id: string
+          id: string
+          kind: string
+          message_id: string
+          position: number
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          family_id: string
+          id?: string
+          kind?: string
+          message_id: string
+          position?: number
+          url: string
+        }
+        Update: {
+          created_at?: string
+          family_id?: string
+          id?: string
+          kind?: string
+          message_id?: string
+          position?: number
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_attachments_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_reactions: {
         Row: {
           emoji: string
@@ -747,9 +792,12 @@ export type Database = {
           album_id: string | null
           caption: string | null
           created_at: string
+          duration_seconds: number | null
           family_id: string
           id: string
           is_favorite: boolean
+          kind: string
+          position: number
           taken_at: string | null
           uploader_id: string
           url: string
@@ -758,9 +806,12 @@ export type Database = {
           album_id?: string | null
           caption?: string | null
           created_at?: string
+          duration_seconds?: number | null
           family_id: string
           id?: string
           is_favorite?: boolean
+          kind?: string
+          position?: number
           taken_at?: string | null
           uploader_id: string
           url: string
@@ -769,9 +820,12 @@ export type Database = {
           album_id?: string | null
           caption?: string | null
           created_at?: string
+          duration_seconds?: number | null
           family_id?: string
           id?: string
           is_favorite?: boolean
+          kind?: string
+          position?: number
           taken_at?: string | null
           uploader_id?: string
           url?: string
@@ -955,6 +1009,57 @@ export type Database = {
           },
         ]
       }
+      post_media: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          family_id: string
+          id: string
+          kind: string
+          position: number
+          post_id: string
+          uploader_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          family_id: string
+          id?: string
+          kind?: string
+          position?: number
+          post_id: string
+          uploader_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          family_id?: string
+          id?: string
+          kind?: string
+          position?: number
+          post_id?: string
+          uploader_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_media_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_media_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_mentions: {
         Row: {
           family_id: string
@@ -993,33 +1098,42 @@ export type Database = {
           author_id: string
           content: string
           created_at: string
+          event_date: string | null
           family_id: string
           id: string
           is_highlight: boolean
+          location: string | null
           mood: string | null
           post_type: Database["public"]["Enums"]["post_type"]
+          title: string | null
           updated_at: string
         }
         Insert: {
           author_id: string
           content: string
           created_at?: string
+          event_date?: string | null
           family_id: string
           id?: string
           is_highlight?: boolean
+          location?: string | null
           mood?: string | null
           post_type?: Database["public"]["Enums"]["post_type"]
+          title?: string | null
           updated_at?: string
         }
         Update: {
           author_id?: string
           content?: string
           created_at?: string
+          event_date?: string | null
           family_id?: string
           id?: string
           is_highlight?: boolean
+          location?: string | null
           mood?: string | null
           post_type?: Database["public"]["Enums"]["post_type"]
+          title?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1132,6 +1246,80 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stories: {
+        Row: {
+          caption: string | null
+          created_at: string
+          expires_at: string
+          family_id: string
+          id: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          expires_at?: string
+          family_id: string
+          id?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          expires_at?: string
+          family_id?: string
+          id?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_views: {
+        Row: {
+          family_id: string
+          story_id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          family_id: string
+          story_id: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          family_id?: string
+          story_id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_views_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_views_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
             referencedColumns: ["id"]
           },
         ]

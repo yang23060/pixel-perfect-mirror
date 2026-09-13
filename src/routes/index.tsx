@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { HeartHandshake, Vote } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { PostComposer, PostFeed } from "@/components/posts";
+import { StoryRow } from "@/components/stories";
 import {
   CheckInCard,
   ConversationPrompt,
@@ -34,6 +35,7 @@ function HomePage() {
   return (
     <AppShell>
       <div className="space-y-4">
+        <StoryRow />
         <ConversationPrompt />
         <div className="grid gap-4 sm:grid-cols-2">
           <UpcomingBirthdays />

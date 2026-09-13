@@ -85,3 +85,74 @@ export function useSignedUrl(path?: string | null, bucket: "family-media" | "ava
   });
   return query.data ?? null;
 }
+
+export const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
+export const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+
+export type MediaKind = "image" | "video";
+
+export function mediaKind(file: File): MediaKind | null {
+  if (ALLOWED_IMAGE_TYPES.includes(file.type)) return "image";
+  if (ALLOWED_VIDEO_TYPES.includes(file.type)) return "video";
+  return null;
+}
+
+export function validateMedia(file: File): string | null {
+  const kind = mediaKind(file);
+  if (!kind) return "Please choose a photo (JPG, PNG, WEBP, GIF) or a video (MP4, MOV, WEBM).";
+  if (kind === "image") return validateImage(file);
+  if (file.size > MAX_VIDEO_BYTES) return "That video is larger than 20 MB. Please choose a shorter one.";
+  return null;
+}
+
+/** Read a video's duration in the browser; returns null when unavailable. */
+export async function videoDuration(file: File): Promise<number | null> {
+  if (typeof window === "undefined") return null;
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const el = document.createElement("video");
+    el.preload = "metadata";
+    el.onloadedmetadata = () => {
+      const d = Number.isFinite(el.duration) ? Math.round(el.duration) : null;
+      URL.revokeObjectURL(url);
+      resolve(d);
+    };
+    el.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    el.src = url;
+  });
+}
+
+export type UploadedMedia = { path: string; kind: MediaKind; duration: number | null };
+
+/** Upload a photo or video into the private family bucket. */
+export async function uploadFamilyMedia(
+  familyId: string,
+  folder: string,
+  file: File,
+): Promise<UploadedMedia> {
+  const problem = validateMedia(file);
+  if (problem) throw new Error(problem);
+  const kind = mediaKind(file)!;
+  if (kind === "image") {
+    const path = await uploadFamilyImage(familyId, folder, file);
+    return { path, kind, duration: null };
+  }
+  const ext = file.name.split(".").pop()?.toLowerCase() || "mp4";
+  const path = `${familyId}/${folder}/${crypto.randomUUID()}.${ext}`;
+  const duration = await videoDuration(file);
+  const { error } = await supabase.storage
+    .from("family-media")
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error(error.message);
+  return { path, kind, duration };
+}
+
+export function formatDuration(seconds?: number | null) {
+  if (!seconds && seconds !== 0) return null;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}

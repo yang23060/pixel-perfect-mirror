@@ -6,11 +6,11 @@ import { Images, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
-import { FamilyImage } from "@/components/FamilyImage";
+import { FamilyMedia } from "@/components/FamilyMedia";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
-import { uploadFamilyImage } from "@/lib/media";
+import { uploadFamilyMedia, validateMedia } from "@/lib/media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,7 +58,14 @@ type AlbumRow = {
   cover_url: string | null;
   created_by: string;
   created_at: string;
-  photos: { id: string; url: string; caption: string | null; is_favorite: boolean }[];
+  photos: { id: string; url: string; caption: string | null; is_favorite: boolean; kind: string; duration_seconds: number | null }[];
+};
+
+type QueuedFile = {
+  file: File;
+  status: "waiting" | "uploading" | "done" | "failed";
+  error?: string;
+  path?: string;
 };
 
 function NewAlbumDialog() {
@@ -69,9 +76,65 @@ function NewAlbumDialog() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [queue, setQueue] = useState<QueuedFile[]>([]);
+  const [coverIndex, setCoverIndex] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
+
+  const pick = (files: File[]) => {
+    const next: QueuedFile[] = [];
+    for (const file of files) {
+      const problem = validateMedia(file);
+      if (problem) toast.error(`${file.name}: ${problem}`);
+      else next.push({ file, status: "waiting" });
+    }
+    setQueue(next);
+    setCoverIndex(0);
+  };
+
+  const move = (index: number, direction: -1 | 1) => {
+    setQueue((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const copy = [...prev];
+      const [item] = copy.splice(index, 1);
+      copy.splice(target, 0, item!);
+      return copy;
+    });
+    setCoverIndex((c) => (c === index ? index + direction : c === index + direction ? index : c));
+  };
+
+  const uploadInto = async (albumId: string, indexes: number[]) => {
+    if (!familyId || !user) return;
+    for (const i of indexes) {
+      const item = queue[i];
+      if (!item) continue;
+      setQueue((prev) => prev.map((q, idx) => (idx === i ? { ...q, status: "uploading" } : q)));
+      try {
+        const up = await uploadFamilyMedia(familyId, "albums", item.file);
+        const { error } = await supabase.from("photos").insert({
+          album_id: albumId,
+          family_id: familyId,
+          uploader_id: user.id,
+          url: up.path,
+          kind: up.kind,
+          duration_seconds: up.duration,
+          position: i,
+        });
+        if (error) throw error;
+        setQueue((prev) =>
+          prev.map((q, idx) => (idx === i ? { ...q, status: "done", path: up.path } : q)),
+        );
+        if (i === coverIndex && up.kind === "image") {
+          await supabase.from("albums").update({ cover_url: up.path }).eq("id", albumId);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Upload failed";
+        setQueue((prev) => prev.map((q, idx) => (idx === i ? { ...q, status: "failed", error: message } : q)));
+      }
+    }
+  };
+
+  const [albumId, setAlbumId] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,46 +145,59 @@ function NewAlbumDialog() {
     }
     setBusy(true);
     try {
-      const { data, error } = await supabase
-        .from("albums")
-        .insert({
-          family_id: familyId,
-          created_by: user.id,
-          title: title.trim(),
-          description: description.trim() || null,
-          event_date: date || null,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      let cover: string | null = null;
-      for (let i = 0; i < files.length; i++) {
-        const path = await uploadFamilyImage(familyId, "albums", files[i]!);
-        if (!cover) cover = path;
-        const { error: pErr } = await supabase.from("photos").insert({
-          album_id: data.id,
-          family_id: familyId,
-          uploader_id: user.id,
-          url: path,
-        });
-        if (pErr) throw pErr;
-        setProgress(Math.round(((i + 1) / files.length) * 100));
+      let id = albumId;
+      if (!id) {
+        const { data, error } = await supabase
+          .from("albums")
+          .insert({
+            family_id: familyId,
+            created_by: user.id,
+            title: title.trim(),
+            description: description.trim() || null,
+            event_date: date || null,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        id = data.id;
+        setAlbumId(id);
       }
-      if (cover) await supabase.from("albums").update({ cover_url: cover }).eq("id", data.id);
+      const pendingIndexes = queue
+        .map((q, i) => (q.status === "done" ? -1 : i))
+        .filter((i) => i >= 0);
+      await uploadInto(id, pendingIndexes);
+      const stillFailed = queue.some((q) => q.status === "failed");
+      void queryClient.invalidateQueries({ queryKey: ["albums"] });
+      if (stillFailed) {
+        toast.error("Some files didn't upload. Tap “Retry failed” to try again.");
+        return;
+      }
       toast.success("Album created.");
       setOpen(false);
       setTitle("");
       setDescription("");
       setDate("");
-      setFiles([]);
-      setProgress(0);
-      void queryClient.invalidateQueries({ queryKey: ["albums"] });
+      setQueue([]);
+      setAlbumId(null);
+      setCoverIndex(0);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not create the album.");
     } finally {
       setBusy(false);
     }
   };
+
+  const retryFailed = async () => {
+    if (!albumId) return;
+    setBusy(true);
+    const indexes = queue.map((q, i) => (q.status === "failed" ? i : -1)).filter((i) => i >= 0);
+    await uploadInto(albumId, indexes);
+    setBusy(false);
+    void queryClient.invalidateQueries({ queryKey: ["albums"] });
+  };
+
+  const failedCount = queue.filter((q) => q.status === "failed").length;
+  const doneCount = queue.filter((q) => q.status === "done").length;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -130,7 +206,7 @@ function NewAlbumDialog() {
           <Images className="mr-2 size-5" /> New album
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create an album</DialogTitle>
         </DialogHeader>
@@ -152,19 +228,67 @@ function NewAlbumDialog() {
             <Input id="al-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="al-photos">Photos</Label>
+            <Label htmlFor="al-photos">Photos & videos</Label>
             <Input
               id="al-photos"
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
-              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+              onChange={(e) => pick(Array.from(e.target.files ?? []))}
             />
-            {busy && files.length > 0 && (
-              <p className="text-sm text-muted-foreground">Uploading… {progress}%</p>
+            {queue.length > 0 && (
+              <ul className="space-y-1.5 pt-1">
+                {queue.map((q, i) => (
+                  <li key={`${q.file.name}-${i}`} className="flex items-center gap-2 text-sm">
+                    <button
+                      type="button"
+                      aria-label={`Use ${q.file.name} as cover`}
+                      onClick={() => setCoverIndex(i)}
+                      className={`rounded-full border px-2 py-0.5 text-xs ${
+                        coverIndex === i ? "border-primary bg-sage/50 font-semibold" : "border-border"
+                      }`}
+                    >
+                      Cover
+                    </button>
+                    <span className="min-w-0 flex-1 truncate">{q.file.name}</span>
+                    <span className="text-muted-foreground">
+                      {q.status === "waiting" && "waiting"}
+                      {q.status === "uploading" && "uploading…"}
+                      {q.status === "done" && "done"}
+                      {q.status === "failed" && (q.error ?? "failed")}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Move ${q.file.name} up`}
+                      onClick={() => move(i, -1)}
+                      className="px-1 text-muted-foreground"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Move ${q.file.name} down`}
+                      onClick={() => move(i, 1)}
+                      className="px-1 text-muted-foreground"
+                    >
+                      ↓
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {busy && queue.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Uploading {doneCount}/{queue.length}…
+              </p>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
+            {failedCount > 0 && (
+              <Button type="button" variant="outline" onClick={() => void retryFailed()} disabled={busy}>
+                Retry failed ({failedCount})
+              </Button>
+            )}
             <Button type="submit" className="w-full" disabled={busy}>
               {busy ? "Saving…" : "Create album"}
             </Button>
@@ -187,7 +311,7 @@ function MemoriesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("albums")
-        .select("*, photos(id, url, caption, is_favorite)")
+        .select("*, photos(id, url, caption, is_favorite, kind, duration_seconds)")
         .eq("family_id", familyId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -236,7 +360,7 @@ function MemoriesPage() {
             <div key={a.id} className="card-soft overflow-hidden">
               <Link to="/memories/$albumId" params={{ albumId: a.id }} className="block">
                 {a.cover_url ? (
-                  <FamilyImage path={a.cover_url} alt={a.title} className="h-44 w-full" />
+                  <FamilyMedia path={a.cover_url} kind="image" alt={a.title} className="h-44 w-full" />
                 ) : (
                   <div className="flex h-44 items-center justify-center bg-muted text-muted-foreground">
                     <Images className="size-8" />
@@ -289,9 +413,11 @@ function MemoriesPage() {
                 {a.photos.length > 1 && (
                   <div className="mt-3 grid grid-cols-3 gap-1.5">
                     {a.photos.slice(0, 6).map((p) => (
-                      <FamilyImage
+                      <FamilyMedia
                         key={p.id}
                         path={p.url}
+                        kind={p.kind}
+                        durationSeconds={p.duration_seconds}
                         alt={p.caption ?? "Family photo"}
                         className="aspect-square w-full rounded-lg"
                       />
