@@ -94,6 +94,27 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
     );
   }
 
+  if (profile?.suspended_at) {
+    return (
+      <div className="mx-auto max-w-md space-y-4 p-8 text-center">
+        <h1 className="font-display text-2xl">Your account is paused</h1>
+        <p className="text-muted-foreground">
+          {profile.suspended_reason
+            ? `Reason given: ${profile.suspended_reason}`
+            : "Please get in touch if you think this is a mistake."}
+        </p>
+        <Button
+          onClick={async () => {
+            await signOut();
+            void navigate({ to: "/auth", search: { next: "/" } });
+          }}
+        >
+          Log out
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
       <div className="md:flex">
