@@ -23,6 +23,7 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as JoinCodeRouteImport } from './routes/join.$code'
 import { Route as MemoriesIndexRouteImport } from './routes/memories.index'
+import { Route as MemoriesAlbumIdRouteImport } from './routes/memories.$albumId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -94,6 +95,11 @@ const MemoriesIndexRoute = MemoriesIndexRouteImport.update({
   path: '/memories/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MemoriesAlbumIdRoute = MemoriesAlbumIdRouteImport.update({
+  id: '/memories/$albumId',
+  path: '/memories/$albumId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/join/$code': typeof JoinCodeRoute
+  '/memories/$albumId': typeof MemoriesAlbumIdRoute
   '/memories/': typeof MemoriesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/join/$code': typeof JoinCodeRoute
+  '/memories/$albumId': typeof MemoriesAlbumIdRoute
   '/memories': typeof MemoriesIndexRoute
 }
 export interface FileRoutesById {
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRoute
   '/join/$code': typeof JoinCodeRoute
+  '/memories/$albumId': typeof MemoriesAlbumIdRoute
   '/memories/': typeof MemoriesIndexRoute
 }
 export interface FileRouteTypes {
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/join/$code'
+    | '/memories/$albumId'
     | '/memories/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/join/$code'
+    | '/memories/$albumId'
     | '/memories'
   id:
     | '__root__'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/join/$code'
+    | '/memories/$albumId'
     | '/memories/'
   fileRoutesById: FileRoutesById
 }
@@ -209,6 +221,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRoute
   JoinCodeRoute: typeof JoinCodeRoute
+  MemoriesAlbumIdRoute: typeof MemoriesAlbumIdRoute
   MemoriesIndexRoute: typeof MemoriesIndexRoute
 }
 
@@ -312,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemoriesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/memories/$albumId': {
+      id: '/memories/$albumId'
+      path: '/memories/$albumId'
+      fullPath: '/memories/$albumId'
+      preLoaderRoute: typeof MemoriesAlbumIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -329,6 +349,7 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRoute,
   JoinCodeRoute: JoinCodeRoute,
+  MemoriesAlbumIdRoute: MemoriesAlbumIdRoute,
   MemoriesIndexRoute: MemoriesIndexRoute,
 }
 export const routeTree = rootRouteImport
