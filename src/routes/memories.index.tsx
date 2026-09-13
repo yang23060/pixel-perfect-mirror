@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Heart, Images, MessageCircle, Trash2 } from "lucide-react";
+import { Heart, Images, Layers, MessageCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
@@ -42,14 +42,32 @@ export const Route = createFileRoute("/memories/")({
       { title: "Memories — Family Circle" },
       {
         name: "description",
-        content: "Shared family photo albums: create an album, add captions and revisit favourites.",
+        content:
+          "Shared family photo albums in a warm masonry wall: create an album, add captions and revisit favourites.",
       },
       { property: "og:title", content: "Memories — Family Circle" },
       { property: "og:description", content: "Your family photobook, kept private and safe." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: MemoriesPage,
 });
+
+const PAGE_SIZE = 12;
+const SCROLL_KEY = "memories-scroll";
+
+type AlbumPhoto = {
+  id: string;
+  url: string;
+  caption: string | null;
+  is_favorite: boolean;
+  kind: string;
+  duration_seconds: number | null;
+  uploader_id: string;
+  position: number | null;
+  created_at: string;
+};
 
 type AlbumRow = {
   id: string;
@@ -59,15 +77,7 @@ type AlbumRow = {
   cover_url: string | null;
   created_by: string;
   created_at: string;
-  photos: {
-    id: string;
-    url: string;
-    caption: string | null;
-    is_favorite: boolean;
-    kind: string;
-    duration_seconds: number | null;
-    uploader_id: string;
-  }[];
+  photos: AlbumPhoto[];
 };
 
 type QueuedFile = {
@@ -138,7 +148,9 @@ function NewAlbumDialog() {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Upload failed";
-        setQueue((prev) => prev.map((q, idx) => (idx === i ? { ...q, status: "failed", error: message } : q)));
+        setQueue((prev) =>
+          prev.map((q, idx) => (idx === i ? { ...q, status: "failed", error: message } : q)),
+        );
       }
     }
   };
@@ -294,7 +306,12 @@ function NewAlbumDialog() {
           </div>
           <DialogFooter className="gap-2">
             {failedCount > 0 && (
-              <Button type="button" variant="outline" onClick={() => void retryFailed()} disabled={busy}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void retryFailed()}
+                disabled={busy}
+              >
                 Retry failed ({failedCount})
               </Button>
             )}
@@ -308,33 +325,6 @@ function NewAlbumDialog() {
   );
 }
 
-/** Faces of everyone who added something to an album. */
-function Contributors({ ids }: { ids: string[] }) {
-  const { members } = useFamily();
-  const unique = Array.from(new Set(ids));
-  if (unique.length === 0) return null;
-  return (
-    <div className="mt-3 flex items-center gap-2">
-      <div className="flex -space-x-2">
-        {unique.slice(0, 4).map((id) => {
-          const p = members.find((m) => m.user_id === id)?.profile ?? null;
-          return (
-            <MemberAvatar
-              key={id}
-              name={p?.display_name ?? "Family member"}
-              avatarPath={p?.avatar_url ?? null}
-              className="size-7 ring-2 ring-card"
-            />
-          );
-        })}
-      </div>
-      <p className="text-sm text-muted-foreground">
-        {unique.length} contributor{unique.length === 1 ? "" : "s"}
-      </p>
-    </div>
-  );
-}
-
 type CommentRow = {
   id: string;
   photo_id: string;
@@ -344,14 +334,224 @@ type CommentRow = {
   created_at: string;
 };
 
-/** Top comment + its first reply for an album, plus a heart on that photo. */
-function AlbumEngagement({ album }: { album: AlbumRow }) {
-  const { familyId, members } = useFamily();
-  const { user } = useAuth();
-  const photoIds = album.photos.map((p) => p.id);
+type Engagement = {
+  likes: Map<string, string[]>;
+  comments: Map<string, number>;
+  top: Map<string, { top: CommentRow; reply: CommentRow | null }>;
+  likePhoto: Map<string, string>;
+};
 
-  const { data, refetch } = useQuery({
-    queryKey: ["album-preview", album.id, photoIds.length],
+function sortPhotos(photos: AlbumPhoto[]) {
+  return photos
+    .slice()
+    .sort(
+      (a, b) =>
+        (a.position ?? 0) - (b.position ?? 0) ||
+        a.created_at.localeCompare(b.created_at) ||
+        a.id.localeCompare(b.id),
+    );
+}
+
+/** One masonry tile: cover media plus title, counts and the top comment. */
+function MemoryCard({
+  album,
+  engagement,
+  onLike,
+  onOpen,
+  canManage,
+  onDelete,
+}: {
+  album: AlbumRow;
+  engagement: Engagement | undefined;
+  onLike: (albumId: string, photoId: string, liked: boolean) => void;
+  onOpen: () => void;
+  canManage: boolean;
+  onDelete: () => void;
+}) {
+  const { members } = useFamily();
+  const { user } = useAuth();
+  const photos = sortPhotos(album.photos);
+  const cover =
+    photos.find((p) => p.url === album.cover_url) ??
+    photos.find((p) => p.kind === "image") ??
+    photos[0] ??
+    null;
+
+  const likePhotoId = engagement?.likePhoto.get(album.id) ?? cover?.id ?? null;
+  const likers = likePhotoId ? (engagement?.likes.get(likePhotoId) ?? []) : [];
+  const liked = !!user && likers.includes(user.id);
+  const commentCount = engagement?.comments.get(album.id) ?? 0;
+  const preview = engagement?.top.get(album.id) ?? null;
+
+  const profileFor = (id: string) => members.find((m) => m.user_id === id)?.profile ?? null;
+  const nameFor = (id: string) => profileFor(id)?.display_name ?? "Family member";
+
+  return (
+    <article className="card-soft mb-4 break-inside-avoid overflow-hidden">
+      <Link
+        to="/memories/$albumId"
+        params={{ albumId: album.id }}
+        onClick={onOpen}
+        aria-label={`Open ${album.title}`}
+        className="relative block"
+      >
+        {cover ? (
+          <FamilyMedia
+            path={cover.url}
+            kind={cover.kind}
+            durationSeconds={cover.duration_seconds}
+            alt={cover.caption ?? album.title}
+            fit="natural"
+            thumbWidth={600}
+            className="w-full"
+          />
+        ) : (
+          <div className="flex aspect-[4/5] items-center justify-center bg-muted text-muted-foreground">
+            <Images className="size-8" />
+          </div>
+        )}
+        {photos.length > 1 && (
+          <span
+            className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-white"
+            aria-label={`${photos.length} items in this memory`}
+          >
+            <Layers className="size-3" />
+            {photos.length}
+          </span>
+        )}
+      </Link>
+
+      <div className="space-y-2 p-3">
+        <div className="flex items-start gap-2">
+          <Link
+            to="/memories/$albumId"
+            params={{ albumId: album.id }}
+            onClick={onOpen}
+            className="min-w-0 flex-1"
+          >
+            <h3 className="line-clamp-2 font-display text-base leading-snug">{album.title}</h3>
+            {album.event_date && (
+              <p className="text-xs text-muted-foreground">
+                {format(new Date(album.event_date), "d MMM yyyy")}
+              </p>
+            )}
+          </Link>
+          {canManage && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  aria-label={`Delete ${album.title}`}
+                  className="p-1 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this memory?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    “{album.title}” and its {photos.length} item{photos.length === 1 ? "" : "s"} will
+                    be removed for everyone. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep memory</AlertDialogCancel>
+                  <AlertDialogAction onClick={onDelete}>Delete memory</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => likePhotoId && onLike(album.id, likePhotoId, liked)}
+            disabled={!likePhotoId}
+            aria-label={liked ? "Remove your like" : "Like this memory"}
+            aria-pressed={liked}
+            className="flex items-center gap-1.5 transition-colors hover:text-primary"
+          >
+            <Heart className={`size-4 ${liked ? "fill-primary text-primary" : ""}`} />
+            {likers.length}
+          </button>
+          <span className="flex items-center gap-1.5">
+            <MessageCircle className="size-4" />
+            {commentCount}
+          </span>
+        </div>
+
+        {preview && (
+          <div className="space-y-1 text-sm">
+            <div className="flex gap-2">
+              <MemberAvatar
+                name={nameFor(preview.top.author_id)}
+                avatarPath={profileFor(preview.top.author_id)?.avatar_url ?? null}
+                className="size-6 shrink-0"
+              />
+              <p className="line-clamp-2 min-w-0">
+                <span className="font-semibold">{nameFor(preview.top.author_id)}</span>{" "}
+                {preview.top.content}
+              </p>
+            </div>
+            {preview.reply && (
+              <p className="ml-8 line-clamp-2 text-muted-foreground">
+                <span className="font-semibold text-foreground">
+                  {nameFor(preview.reply.author_id)}
+                </span>{" "}
+                {preview.reply.content}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function MemoriesPage() {
+  const { familyId, isAdmin } = useFamily();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const sentinel = useRef<HTMLDivElement>(null);
+
+  const feed = useInfiniteQuery({
+    queryKey: ["albums", familyId],
+    enabled: !!familyId,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const from = (pageParam as number) * PAGE_SIZE;
+      const { data, error } = await supabase
+        .from("albums")
+        .select(
+          "id, title, description, event_date, cover_url, created_by, created_at, photos(id, url, caption, is_favorite, kind, duration_seconds, uploader_id, position, created_at)",
+        )
+        .eq("family_id", familyId!)
+        .order("created_at", { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      return (data ?? []) as unknown as AlbumRow[];
+    },
+    getNextPageParam: (last, all) => (last.length < PAGE_SIZE ? undefined : all.length),
+  });
+
+  const loaded = useMemo(() => feed.data?.pages.flat() ?? [], [feed.data]);
+
+  const albums = loaded.filter((a) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      a.title.toLowerCase().includes(q) ||
+      (a.description ?? "").toLowerCase().includes(q) ||
+      a.photos.some((p) => (p.caption ?? "").toLowerCase().includes(q))
+    );
+  });
+
+  const photoIds = useMemo(() => loaded.flatMap((a) => a.photos.map((p) => p.id)), [loaded]);
+
+  const engagement = useQuery<Engagement>({
+    queryKey: ["albums-engagement", familyId, photoIds.length],
     enabled: photoIds.length > 0,
     queryFn: async () => {
       const [r, c] = await Promise.all([
@@ -364,102 +564,77 @@ function AlbumEngagement({ album }: { album: AlbumRow }) {
       ]);
       if (r.error) throw r.error;
       if (c.error) throw c.error;
-      const rows = (c.data ?? []) as CommentRow[];
-      const top = rows.find((row) => !row.reply_to) ?? null;
-      const reply = top ? (rows.find((row) => row.reply_to === top.id) ?? null) : null;
-      return { reactions: r.data ?? [], top, reply, commentCount: rows.length };
+
+      const albumOf = new Map<string, string>();
+      for (const a of loaded) for (const p of a.photos) albumOf.set(p.id, a.id);
+
+      const likes = new Map<string, string[]>();
+      for (const row of r.data ?? []) {
+        const list = likes.get(row.photo_id) ?? [];
+        list.push(row.user_id);
+        likes.set(row.photo_id, list);
+      }
+
+      const comments = new Map<string, number>();
+      const top = new Map<string, { top: CommentRow; reply: CommentRow | null }>();
+      const likePhoto = new Map<string, string>();
+      for (const row of (c.data ?? []) as CommentRow[]) {
+        const albumId = albumOf.get(row.photo_id);
+        if (!albumId) continue;
+        comments.set(albumId, (comments.get(albumId) ?? 0) + 1);
+        const existing = top.get(albumId);
+        if (!existing) {
+          if (!row.reply_to) {
+            top.set(albumId, { top: row, reply: null });
+            likePhoto.set(albumId, row.photo_id);
+          }
+        } else if (!existing.reply && existing.top.id === row.reply_to) {
+          top.set(albumId, { top: existing.top, reply: row });
+        }
+      }
+      return { likes, comments, top, likePhoto };
     },
   });
 
-  if (photoIds.length === 0) return null;
+  // Infinite scroll.
+  useEffect(() => {
+    const node = sentinel.current;
+    if (!node) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && feed.hasNextPage && !feed.isFetchingNextPage) {
+        void feed.fetchNextPage();
+      }
+    });
+    io.observe(node);
+    return () => io.disconnect();
+  }, [feed.hasNextPage, feed.isFetchingNextPage, feed.fetchNextPage]);
 
-  const likePhotoId = data?.top?.photo_id ?? photoIds[0]!;
-  const likes = (data?.reactions ?? []).filter((r) => r.photo_id === likePhotoId);
-  const liked = likes.some((r) => r.user_id === user?.id);
+  // Restore the reader's place after coming back from a memory.
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SCROLL_KEY);
+    if (saved && loaded.length > 0) {
+      window.scrollTo({ top: Number(saved) });
+      sessionStorage.removeItem(SCROLL_KEY);
+    }
+  }, [loaded.length]);
 
-  const name = (id: string) =>
-    members.find((m) => m.user_id === id)?.profile?.display_name ?? "Family member";
-
-  const toggleLike = async () => {
+  const toggleLike = async (albumId: string, photoId: string, liked: boolean) => {
     if (!user || !familyId) return;
     if (liked) {
       const { error } = await supabase
         .from("photo_reactions")
         .delete()
-        .eq("photo_id", likePhotoId)
+        .eq("photo_id", photoId)
         .eq("user_id", user.id);
       if (error) toast.error(error.message);
     } else {
       const { error } = await supabase
         .from("photo_reactions")
-        .insert({ photo_id: likePhotoId, family_id: familyId, user_id: user.id, emoji: "❤️" });
+        .insert({ photo_id: photoId, family_id: familyId, user_id: user.id, emoji: "❤️" });
       if (error) toast.error(error.message);
     }
-    void refetch();
+    void engagement.refetch();
   };
-
-  return (
-    <div className="mt-3 space-y-2">
-      {data?.top && (
-        <div className="space-y-1 text-sm">
-          <p className="line-clamp-2">
-            <span className="font-semibold">{name(data.top.author_id)}</span> {data.top.content}
-          </p>
-          {data.reply && (
-            <p className="ml-4 line-clamp-2 text-muted-foreground">
-              <span className="font-semibold text-foreground">{name(data.reply.author_id)}</span>{" "}
-              {data.reply.content}
-            </p>
-          )}
-        </div>
-      )}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        <button
-          type="button"
-          onClick={() => void toggleLike()}
-          aria-label={liked ? "Remove your like" : "Like this memory"}
-          aria-pressed={liked}
-          className="flex items-center gap-1.5 transition-colors hover:text-primary"
-        >
-          <Heart className={`size-4 ${liked ? "fill-primary text-primary" : ""}`} />
-          {likes.length}
-        </button>
-        <span className="flex items-center gap-1.5">
-          <MessageCircle className="size-4" />
-          {data?.commentCount ?? 0}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function MemoriesPage() {
-  const { familyId, isAdmin } = useFamily();
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["albums", familyId],
-    enabled: !!familyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("albums")
-        .select("*, photos(id, url, caption, is_favorite, kind, duration_seconds, uploader_id)")
-        .eq("family_id", familyId!)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as AlbumRow[];
-    },
-  });
-
-  const albums = (data ?? []).filter(
-    (a) =>
-      !search.trim() ||
-      a.title.toLowerCase().includes(search.toLowerCase()) ||
-      (a.description ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      a.photos.some((p) => (p.caption ?? "").toLowerCase().includes(search.toLowerCase())),
-  );
 
   const removeAlbum = async (id: string) => {
     const { error: err } = await supabase.from("albums").delete().eq("id", id);
@@ -467,7 +642,7 @@ function MemoriesPage() {
       toast.error(err.message);
       return;
     }
-    toast.success("Album deleted.");
+    toast.success("Memory deleted.");
     void queryClient.invalidateQueries({ queryKey: ["albums"] });
   };
 
@@ -479,91 +654,38 @@ function MemoriesPage() {
           placeholder="Search albums and captions…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search memories"
         />
-        {isLoading && <LoadingBlock />}
-        {error && <ErrorState message="We couldn't load your albums." />}
-        {!isLoading && albums.length === 0 && (
+        {feed.isLoading && <LoadingBlock />}
+        {feed.error && <ErrorState message="We couldn't load your memories." />}
+        {!feed.isLoading && albums.length === 0 && (
           <EmptyState
             icon={<Images className="size-8" />}
-            title="No albums yet"
-            description="Create your first album and start filling the family photobook."
+            title={search.trim() ? "Nothing matched" : "No memories yet"}
+            description={
+              search.trim()
+                ? "Try another word from a title or caption."
+                : "Create your first album and start filling the family photobook."
+            }
           />
         )}
-        <div className="grid gap-4 sm:grid-cols-2">
+
+        <div className="columns-2 gap-4 lg:columns-3 xl:columns-4">
           {albums.map((a) => (
-            <div key={a.id} className="card-soft overflow-hidden">
-              <Link to="/memories/$albumId" params={{ albumId: a.id }} className="block">
-                {a.cover_url ? (
-                  <FamilyMedia path={a.cover_url} kind="image" alt={a.title} className="h-44 w-full" />
-                ) : (
-                  <div className="flex h-44 items-center justify-center bg-muted text-muted-foreground">
-                    <Images className="size-8" />
-                  </div>
-                )}
-              </Link>
-              <div className="p-4">
-                <div className="flex items-start gap-2">
-                  <Link
-                    to="/memories/$albumId"
-                    params={{ albumId: a.id }}
-                    className="min-w-0 flex-1"
-                  >
-                    <h3 className="truncate font-display text-lg">{a.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {a.photos.length} photo{a.photos.length === 1 ? "" : "s"}
-                      {a.event_date ? ` · ${format(new Date(a.event_date), "d MMM yyyy")}` : ""}
-                    </p>
-                  </Link>
-                  {(a.created_by === user?.id || isAdmin) && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button
-                          aria-label="Delete album"
-                          className="p-1.5 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete this album?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            “{a.title}” and its {a.photos.length} photo
-                            {a.photos.length === 1 ? "" : "s"} will be removed for everyone. This
-                            cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Keep album</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => void removeAlbum(a.id)}>
-                            Delete album
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
-                {a.description && <p className="mt-2">{a.description}</p>}
-                <Contributors ids={a.photos.map((p) => p.uploader_id)} />
-                <AlbumEngagement album={a} />
-                {a.photos.length > 1 && (
-                  <div className="mt-3 grid grid-cols-3 gap-1">
-                    {a.photos.slice(0, 6).map((p) => (
-                      <FamilyMedia
-                        key={p.id}
-                        path={p.url}
-                        kind={p.kind}
-                        durationSeconds={p.duration_seconds}
-                        alt={p.caption ?? "Family photo"}
-                        className="aspect-square w-full rounded-md"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            <MemoryCard
+              key={a.id}
+              album={a}
+              engagement={engagement.data}
+              onLike={(albumId, photoId, liked) => void toggleLike(albumId, photoId, liked)}
+              onOpen={() => sessionStorage.setItem(SCROLL_KEY, String(window.scrollY))}
+              canManage={a.created_by === user?.id || isAdmin}
+              onDelete={() => void removeAlbum(a.id)}
+            />
           ))}
         </div>
+
+        <div ref={sentinel} aria-hidden className="h-8" />
+        {feed.isFetchingNextPage && <LoadingBlock rows={1} />}
       </div>
     </AppShell>
   );

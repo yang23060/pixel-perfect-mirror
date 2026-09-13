@@ -70,18 +70,30 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
   return path;
 }
 
-async function sign(bucket: string, path: string) {
+async function sign(bucket: string, path: string, width?: number) {
+  if (width) {
+    // Ask storage for a smaller rendition; fall back to the original when
+    // transformations are unavailable.
+    const t = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, 60 * 60, { transform: { width, quality: 70, resize: "contain" } });
+    if (!t.error && t.data?.signedUrl) return t.data.signedUrl;
+  }
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
   if (error) return null;
   return data?.signedUrl ?? null;
 }
 
-export function useSignedUrl(path?: string | null, bucket: "family-media" | "avatars" = "family-media") {
+export function useSignedUrl(
+  path?: string | null,
+  bucket: "family-media" | "avatars" = "family-media",
+  width?: number,
+) {
   const query = useQuery({
-    queryKey: ["signed-url", bucket, path],
+    queryKey: ["signed-url", bucket, path, width ?? 0],
     enabled: !!path,
     staleTime: 50 * 60 * 1000,
-    queryFn: () => sign(bucket, path!),
+    queryFn: () => sign(bucket, path!, width),
   });
   return query.data ?? null;
 }

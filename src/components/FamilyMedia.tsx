@@ -20,6 +20,8 @@ export function FamilyMedia({
   className,
   durationSeconds,
   onClick,
+  fit = "cover",
+  thumbWidth,
 }: {
   path?: string | null;
   kind: MediaKind | string;
@@ -27,14 +29,25 @@ export function FamilyMedia({
   className?: string;
   durationSeconds?: number | null;
   onClick?: () => void;
+  /** "natural" keeps the media's own aspect ratio (masonry, carousel). */
+  fit?: "cover" | "natural";
+  /** Request a smaller rendition for grid thumbnails. */
+  thumbWidth?: number;
 }) {
-  const url = useSignedUrl(path);
+  const url = useSignedUrl(path, "family-media", kind === "image" ? thumbWidth : undefined);
   const badge = formatDuration(durationSeconds ?? undefined);
+  const natural = fit === "natural";
 
   if (!path) return null;
   if (!url) {
     return (
-      <div className={cn("flex items-center justify-center bg-muted text-muted-foreground", className)}>
+      <div
+        className={cn(
+          "flex items-center justify-center bg-muted text-muted-foreground",
+          natural && "aspect-[4/5] w-full animate-pulse",
+          className,
+        )}
+      >
         <ImageIcon className="size-6 opacity-50" />
       </div>
     );
@@ -49,15 +62,22 @@ export function FamilyMedia({
           playsInline
           preload="metadata"
           onClick={onClick}
-          className={cn("size-full object-cover", onClick && "cursor-pointer")}
+          className={cn(
+            natural ? "h-auto w-full object-contain" : "size-full object-cover",
+            onClick && "cursor-pointer",
+          )}
         />
       ) : (
         <img
           src={url}
           alt={alt}
           loading="lazy"
+          decoding="async"
           onClick={onClick}
-          className={cn("size-full object-cover", onClick && "cursor-zoom-in")}
+          className={cn(
+            natural ? "h-auto w-full object-contain" : "size-full object-cover",
+            onClick && "cursor-zoom-in",
+          )}
         />
       )}
       {kind === "video" && (
