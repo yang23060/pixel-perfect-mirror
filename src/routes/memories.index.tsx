@@ -123,7 +123,8 @@ function NewAlbumDialog() {
   };
 
   const uploadInto = async (albumId: string, indexes: number[]) => {
-    if (!familyId || !user) return;
+    const uploaded: { path: string; kind: string }[] = [];
+    if (!familyId || !user) return uploaded;
     for (const i of indexes) {
       const item = queue[i];
       if (!item) continue;
