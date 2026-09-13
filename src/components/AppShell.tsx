@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
+import { usePlatformAdmin } from "@/lib/roles";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,6 +60,7 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const unread = useUnreadNotifications();
+  const { isPlatformAdmin } = usePlatformAdmin();
 
   useEffect(() => {
     if (loading) return;
@@ -203,6 +205,11 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                   <DropdownMenuItem onClick={() => void navigate({ to: "/families" })}>
                     My families
                   </DropdownMenuItem>
+                  {isPlatformAdmin && (
+                    <DropdownMenuItem onClick={() => void navigate({ to: "/admin" })}>
+                      Creator dashboard
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => void navigate({ to: "/settings" })}>
                     Settings
                   </DropdownMenuItem>
