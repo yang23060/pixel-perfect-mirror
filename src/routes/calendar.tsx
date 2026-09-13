@@ -104,6 +104,14 @@ type EventRow = {
   event_attendees: { id: string; user_id: string; status: string | null }[];
 };
 
+/** Combine a local yyyy-MM-dd date with an HH:mm time into a local Date. */
+function combineLocal(date: string, time: string, allDay: boolean): Date | null {
+  if (!date) return null;
+  const t = allDay ? "00:00" : time || "09:00";
+  const parsed = new Date(`${date}T${t}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function CreateEventDialog() {
   const { familyId, members } = useFamily();
   const { user } = useAuth();
@@ -112,8 +120,10 @@ function CreateEventDialog() {
   const [busy, setBusy] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("18:00");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [allDay, setAllDay] = useState(false);
   const [location, setLocation] = useState("");
   const [category, setCategory] = useState("gathering");
@@ -125,8 +135,18 @@ function CreateEventDialog() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy || !familyId || !user) return;
-    if (!title.trim() || !start) {
-      toast.error("Please add a title and a start time.");
+    const startsAt = combineLocal(startDate, startTime, allDay);
+    const endsAt = combineLocal(endDate, endTime, allDay);
+    if (!title.trim()) {
+      toast.error("Please add a title.");
+      return;
+    }
+    if (!startsAt) {
+      toast.error("Please choose a start date.");
+      return;
+    }
+    if (endsAt && endsAt.getTime() < startsAt.getTime()) {
+      toast.error("The end time can't be before the start time.");
       return;
     }
     setBusy(true);
@@ -140,8 +160,8 @@ function CreateEventDialog() {
           created_by: user.id,
           title: title.trim(),
           description: description.trim() || null,
-          starts_at: new Date(start).toISOString(),
-          ends_at: end ? new Date(end).toISOString() : null,
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt ? endsAt.toISOString() : null,
           all_day: allDay,
           location: location.trim() || null,
           category: category as EventRow["category"] as never,
@@ -171,7 +191,7 @@ function CreateEventDialog() {
             actor_id: user.id,
             type: "event",
             title: `New event: ${title.trim()}`,
-            body: format(new Date(start), "eee d MMM, HH:mm"),
+            body: format(startsAt, allDay ? "eee d MMM" : "eee d MMM, HH:mm"),
             link: "/calendar",
           })),
         );
@@ -180,8 +200,9 @@ function CreateEventDialog() {
       setOpen(false);
       setTitle("");
       setDescription("");
-      setStart("");
-      setEnd("");
+      setStartDate("");
+      setEndDate("");
+      setEndTime("");
       setLocation("");
       setInvited([]);
       setCover(null);
@@ -226,22 +247,44 @@ function CreateEventDialog() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="ev-start">Starts</Label>
-              <Input
-                id="ev-start"
-                type={allDay ? "date" : "datetime-local"}
-                required
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="ev-start"
+                  type="date"
+                  required
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+                {!allDay && (
+                  <Input
+                    aria-label="Start time"
+                    type="time"
+                    className="w-32"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                  />
+                )}
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ev-end">Ends</Label>
-              <Input
-                id="ev-end"
-                type={allDay ? "date" : "datetime-local"}
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-              />
+              <Label htmlFor="ev-end">Ends (optional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="ev-end"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+                {!allDay && (
+                  <Input
+                    aria-label="End time"
+                    type="time"
+                    className="w-32"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  />
+                )}
+              </div>
             </div>
           </div>
           <div className="space-y-1.5">
