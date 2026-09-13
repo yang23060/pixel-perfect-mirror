@@ -319,7 +319,7 @@ function MemoriesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("albums")
-        .select("*, photos(id, url, caption, is_favorite, kind, duration_seconds)")
+        .select("*, photos(id, url, caption, is_favorite, kind, duration_seconds, uploader_id)")
         .eq("family_id", familyId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -418,8 +418,9 @@ function MemoriesPage() {
                   )}
                 </div>
                 {a.description && <p className="mt-2">{a.description}</p>}
+                <Contributors ids={a.photos.map((p) => p.uploader_id)} />
                 {a.photos.length > 1 && (
-                  <div className="mt-3 grid grid-cols-3 gap-1.5">
+                  <div className="mt-3 grid grid-cols-3 gap-1">
                     {a.photos.slice(0, 6).map((p) => (
                       <FamilyMedia
                         key={p.id}
@@ -427,7 +428,7 @@ function MemoriesPage() {
                         kind={p.kind}
                         durationSeconds={p.duration_seconds}
                         alt={p.caption ?? "Family photo"}
-                        className="aspect-square w-full rounded-lg"
+                        className="aspect-square w-full rounded-md"
                       />
                     ))}
                   </div>
