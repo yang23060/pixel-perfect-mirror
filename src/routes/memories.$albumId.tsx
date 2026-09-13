@@ -101,11 +101,11 @@ function PhotoViewer({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("photo_comments")
-        .select("id, content, author_id, created_at")
+        .select("id, photo_id, content, author_id, reply_to, created_at")
         .eq("photo_id", photo.id)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as PhotoComment[];
     },
   });
 
