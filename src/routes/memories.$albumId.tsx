@@ -213,8 +213,14 @@ function PhotoViewer({
       return;
     }
     setComment("");
+    setReplyTo(null);
     void comments.refetch();
   };
+
+  const allComments = comments.data ?? [];
+  const topLevel = allComments.filter((c) => !c.reply_to);
+  const repliesFor = (id: string) => allComments.filter((c) => c.reply_to === id);
+  const replyTarget = replyTo ? allComments.find((c) => c.id === replyTo) : null;
 
   const nameFor = (id: string) =>
     members.find((m) => m.user_id === id)?.profile?.display_name ?? "Family member";
