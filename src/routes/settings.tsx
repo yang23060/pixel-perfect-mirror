@@ -184,7 +184,6 @@ function SettingsPage() {
   return (
     <AppShell title="Settings">
       <div className="space-y-5">
-        <NotificationPrefsCard />
         <form onSubmit={saveProfile} className="card-soft space-y-4 p-5">
           <h2 className="font-display text-xl">Your profile</h2>
           <div className="flex items-center gap-4">
