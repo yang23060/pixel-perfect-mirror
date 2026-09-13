@@ -10,7 +10,7 @@ import { FamilyImage } from "@/components/FamilyImage";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
-import { uploadFamilyImage } from "@/lib/media";
+import { uploadFamilyMedia, validateMedia } from "@/lib/media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
