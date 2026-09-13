@@ -770,6 +770,7 @@ export type Database = {
           family_id: string
           id: string
           photo_id: string
+          reply_to: string | null
         }
         Insert: {
           author_id: string
@@ -778,6 +779,7 @@ export type Database = {
           family_id: string
           id?: string
           photo_id: string
+          reply_to?: string | null
         }
         Update: {
           author_id?: string
@@ -786,6 +788,7 @@ export type Database = {
           family_id?: string
           id?: string
           photo_id?: string
+          reply_to?: string | null
         }
         Relationships: [
           {
@@ -800,6 +803,13 @@ export type Database = {
             columns: ["photo_id"]
             isOneToOne: false
             referencedRelation: "photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photo_comments_reply_to_fkey"
+            columns: ["reply_to"]
+            isOneToOne: false
+            referencedRelation: "photo_comments"
             referencedColumns: ["id"]
           },
         ]

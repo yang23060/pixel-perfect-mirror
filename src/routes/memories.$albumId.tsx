@@ -59,6 +59,15 @@ type Photo = {
   position: number | null;
 };
 
+type PhotoComment = {
+  id: string;
+  photo_id: string;
+  content: string;
+  author_id: string;
+  reply_to: string | null;
+  created_at: string;
+};
+
 type Album = {
   id: string;
   title: string;
@@ -84,6 +93,7 @@ function PhotoViewer({
   const { familyId, isAdmin, members } = useFamily();
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [comment, setComment] = useState("");
+  const [replyTo, setReplyTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const canManage = photo.uploader_id === user?.id || album.created_by === user?.id || isAdmin;
 
@@ -92,11 +102,11 @@ function PhotoViewer({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("photo_comments")
-        .select("id, content, author_id, created_at")
+        .select("id, photo_id, content, author_id, reply_to, created_at")
         .eq("photo_id", photo.id)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as PhotoComment[];
     },
   });
 
@@ -195,6 +205,7 @@ function PhotoViewer({
       family_id: familyId,
       author_id: user.id,
       content: comment.trim(),
+      reply_to: replyTo,
     });
     setBusy(false);
     if (error) {
@@ -202,8 +213,14 @@ function PhotoViewer({
       return;
     }
     setComment("");
+    setReplyTo(null);
     void comments.refetch();
   };
+
+  const allComments = comments.data ?? [];
+  const topLevel = allComments.filter((c) => !c.reply_to);
+  const repliesFor = (id: string) => allComments.filter((c) => c.reply_to === id);
+  const replyTarget = replyTo ? allComments.find((c) => c.id === replyTo) : null;
 
   const nameFor = (id: string) =>
     members.find((m) => m.user_id === id)?.profile?.display_name ?? "Family member";
@@ -293,24 +310,58 @@ function PhotoViewer({
           {comments.data?.length === 0 && (
             <p className="text-sm text-muted-foreground">No comments yet.</p>
           )}
-          {comments.data?.map((c) => (
-            <div key={c.id} className="flex gap-3">
-              <MemberAvatar
-                name={nameFor(c.author_id)}
-                avatarPath={avatarFor(c.author_id)}
-                className="size-9"
-              />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">{nameFor(c.author_id)}</p>
-                <p className="break-words">{c.content}</p>
+          {topLevel.map((c) => (
+            <div key={c.id} className="space-y-2">
+              <div className="flex gap-3">
+                <MemberAvatar
+                  name={nameFor(c.author_id)}
+                  avatarPath={avatarFor(c.author_id)}
+                  className="size-9"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{nameFor(c.author_id)}</p>
+                  <p className="break-words">{c.content}</p>
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
+                    onClick={() => setReplyTo(c.id)}
+                  >
+                    Reply
+                  </button>
+                </div>
               </div>
+              {repliesFor(c.id).map((r) => (
+                <div key={r.id} className="flex gap-3 pl-8">
+                  <MemberAvatar
+                    name={nameFor(r.author_id)}
+                    avatarPath={avatarFor(r.author_id)}
+                    className="size-7"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{nameFor(r.author_id)}</p>
+                    <p className="break-words">{r.content}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
+          {replyTarget && (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              Replying to {nameFor(replyTarget.author_id)}
+              <button
+                type="button"
+                className="font-semibold underline"
+                onClick={() => setReplyTo(null)}
+              >
+                Cancel
+              </button>
+            </p>
+          )}
           <div className="flex gap-2">
             <Input
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Write a comment…"
+              placeholder={replyTarget ? "Write a reply…" : "Write a comment…"}
               aria-label="Write a comment"
             />
             <Button onClick={() => void addComment()} disabled={busy || !comment.trim()}>
@@ -357,7 +408,11 @@ function AlbumPage() {
     queryFn: async () => {
       const [r, c] = await Promise.all([
         supabase.from("photo_reactions").select("photo_id").in("photo_id", photoIds),
-        supabase.from("photo_comments").select("photo_id").in("photo_id", photoIds),
+        supabase
+          .from("photo_comments")
+          .select("id, photo_id, content, author_id, reply_to, created_at")
+          .in("photo_id", photoIds)
+          .order("created_at", { ascending: true }),
       ]);
       if (r.error) throw r.error;
       if (c.error) throw c.error;
@@ -365,9 +420,17 @@ function AlbumPage() {
       for (const row of r.data ?? [])
         reactions.set(row.photo_id, (reactions.get(row.photo_id) ?? 0) + 1);
       const comments = new Map<string, number>();
-      for (const row of c.data ?? [])
+      const previews = new Map<string, { top: PhotoComment; reply: PhotoComment | null }>();
+      for (const row of (c.data ?? []) as PhotoComment[]) {
         comments.set(row.photo_id, (comments.get(row.photo_id) ?? 0) + 1);
-      return { reactions, comments };
+        const existing = previews.get(row.photo_id);
+        if (!existing) {
+          if (!row.reply_to) previews.set(row.photo_id, { top: row, reply: null });
+        } else if (!existing.reply && existing.top.id === row.reply_to) {
+          previews.set(row.photo_id, { top: existing.top, reply: row });
+        }
+      }
+      return { reactions, comments, previews };
     },
   });
 
@@ -506,6 +569,10 @@ function AlbumPage() {
                 {photos.map((p) => {
                   const hearts = engagement.data?.reactions.get(p.id) ?? 0;
                   const said = engagement.data?.comments.get(p.id) ?? 0;
+                  const preview = engagement.data?.previews.get(p.id) ?? null;
+                  const previewName = (id: string) =>
+                    members.find((m) => m.user_id === id)?.profile?.display_name ??
+                    "Family member";
                   return (
                     <button
                       key={p.id}
@@ -523,18 +590,40 @@ function AlbumPage() {
                       {p.is_favorite && (
                         <Star className="absolute right-1.5 top-1.5 size-4 fill-rose text-rose" />
                       )}
-                      {(hearts > 0 || said > 0) && (
-                        <span className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/60 to-transparent px-2 py-1 text-xs font-semibold text-white">
-                          {hearts > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Heart className="size-3 fill-current" />
-                              {hearts}
+                      {(hearts > 0 || said > 0 || preview) && (
+                        <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-gradient-to-t from-black/70 via-black/40 to-transparent px-2 py-1 text-xs text-white">
+                          {preview && (
+                            <span className="block space-y-0.5 font-normal">
+                              <span className="block truncate">
+                                <span className="font-semibold">
+                                  {previewName(preview.top.author_id)}
+                                </span>{" "}
+                                {preview.top.content}
+                              </span>
+                              {preview.reply && (
+                                <span className="block truncate pl-2 opacity-90">
+                                  <span className="font-semibold">
+                                    {previewName(preview.reply.author_id)}
+                                  </span>{" "}
+                                  {preview.reply.content}
+                                </span>
+                              )}
                             </span>
                           )}
-                          {said > 0 && (
-                            <span className="flex items-center gap-1">
-                              <MessageCircle className="size-3" />
-                              {said}
+                          {(hearts > 0 || said > 0) && (
+                            <span className="flex items-center gap-3 font-semibold">
+                              {hearts > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <Heart className="size-3 fill-current" />
+                                  {hearts}
+                                </span>
+                              )}
+                              {said > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <MessageCircle className="size-3" />
+                                  {said}
+                                </span>
+                              )}
                             </span>
                           )}
                         </span>
