@@ -189,13 +189,19 @@ function NewAlbumDialog() {
       const pendingIndexes = queue
         .map((q, i) => (q.status === "done" ? -1 : i))
         .filter((i) => i >= 0);
-      await uploadInto(id, pendingIndexes);
+      const uploaded = await uploadInto(id, pendingIndexes);
       const stillFailed = queue.some((q) => q.status === "failed");
       void queryClient.invalidateQueries({ queryKey: ["albums"] });
       if (stillFailed) {
         toast.error("Some files didn't upload. Tap “Retry failed” to try again.");
         return;
       }
+      void shareMemoryToChat({
+        familyId,
+        senderId: user.id,
+        text: `📸 New memory: “${title.trim()}”`,
+        media: uploaded,
+      });
       toast.success("Album created.");
       setOpen(false);
       setTitle("");
