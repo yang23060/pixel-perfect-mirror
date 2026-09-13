@@ -335,6 +335,104 @@ function Contributors({ ids }: { ids: string[] }) {
   );
 }
 
+type CommentRow = {
+  id: string;
+  photo_id: string;
+  content: string;
+  author_id: string;
+  reply_to: string | null;
+  created_at: string;
+};
+
+/** Top comment + its first reply for an album, plus a heart on that photo. */
+function AlbumEngagement({ album }: { album: AlbumRow }) {
+  const { familyId, members } = useFamily();
+  const { user } = useAuth();
+  const photoIds = album.photos.map((p) => p.id);
+
+  const { data, refetch } = useQuery({
+    queryKey: ["album-preview", album.id, photoIds.length],
+    enabled: photoIds.length > 0,
+    queryFn: async () => {
+      const [r, c] = await Promise.all([
+        supabase.from("photo_reactions").select("photo_id, user_id").in("photo_id", photoIds),
+        supabase
+          .from("photo_comments")
+          .select("id, photo_id, content, author_id, reply_to, created_at")
+          .in("photo_id", photoIds)
+          .order("created_at", { ascending: true }),
+      ]);
+      if (r.error) throw r.error;
+      if (c.error) throw c.error;
+      const rows = (c.data ?? []) as CommentRow[];
+      const top = rows.find((row) => !row.reply_to) ?? null;
+      const reply = top ? (rows.find((row) => row.reply_to === top.id) ?? null) : null;
+      return { reactions: r.data ?? [], top, reply, commentCount: rows.length };
+    },
+  });
+
+  if (photoIds.length === 0) return null;
+
+  const likePhotoId = data?.top?.photo_id ?? photoIds[0]!;
+  const likes = (data?.reactions ?? []).filter((r) => r.photo_id === likePhotoId);
+  const liked = likes.some((r) => r.user_id === user?.id);
+
+  const name = (id: string) =>
+    members.find((m) => m.user_id === id)?.profile?.display_name ?? "Family member";
+
+  const toggleLike = async () => {
+    if (!user || !familyId) return;
+    if (liked) {
+      const { error } = await supabase
+        .from("photo_reactions")
+        .delete()
+        .eq("photo_id", likePhotoId)
+        .eq("user_id", user.id);
+      if (error) toast.error(error.message);
+    } else {
+      const { error } = await supabase
+        .from("photo_reactions")
+        .insert({ photo_id: likePhotoId, family_id: familyId, user_id: user.id, emoji: "❤️" });
+      if (error) toast.error(error.message);
+    }
+    void refetch();
+  };
+
+  return (
+    <div className="mt-3 space-y-2">
+      {data?.top && (
+        <div className="space-y-1 text-sm">
+          <p className="line-clamp-2">
+            <span className="font-semibold">{name(data.top.author_id)}</span> {data.top.content}
+          </p>
+          {data.reply && (
+            <p className="ml-4 line-clamp-2 text-muted-foreground">
+              <span className="font-semibold text-foreground">{name(data.reply.author_id)}</span>{" "}
+              {data.reply.content}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <button
+          type="button"
+          onClick={() => void toggleLike()}
+          aria-label={liked ? "Remove your like" : "Like this memory"}
+          aria-pressed={liked}
+          className="flex items-center gap-1.5 transition-colors hover:text-primary"
+        >
+          <Heart className={`size-4 ${liked ? "fill-primary text-primary" : ""}`} />
+          {likes.length}
+        </button>
+        <span className="flex items-center gap-1.5">
+          <MessageCircle className="size-4" />
+          {data?.commentCount ?? 0}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function MemoriesPage() {
   const { familyId, isAdmin } = useFamily();
   const { user } = useAuth();
