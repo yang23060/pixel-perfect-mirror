@@ -6,7 +6,7 @@ import { Images, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
-import { FamilyImage } from "@/components/FamilyImage";
+import { FamilyMedia } from "@/components/FamilyMedia";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
@@ -58,7 +58,7 @@ type AlbumRow = {
   cover_url: string | null;
   created_by: string;
   created_at: string;
-  photos: { id: string; url: string; caption: string | null; is_favorite: boolean }[];
+  photos: { id: string; url: string; caption: string | null; is_favorite: boolean; kind: string; duration_seconds: number | null }[];
 };
 
 type QueuedFile = {
@@ -311,7 +311,7 @@ function MemoriesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("albums")
-        .select("*, photos(id, url, caption, is_favorite)")
+        .select("*, photos(id, url, caption, is_favorite, kind, duration_seconds)")
         .eq("family_id", familyId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -360,7 +360,7 @@ function MemoriesPage() {
             <div key={a.id} className="card-soft overflow-hidden">
               <Link to="/memories/$albumId" params={{ albumId: a.id }} className="block">
                 {a.cover_url ? (
-                  <FamilyImage path={a.cover_url} alt={a.title} className="h-44 w-full" />
+                  <FamilyMedia path={a.cover_url} kind="image" alt={a.title} className="h-44 w-full" />
                 ) : (
                   <div className="flex h-44 items-center justify-center bg-muted text-muted-foreground">
                     <Images className="size-8" />
@@ -413,9 +413,11 @@ function MemoriesPage() {
                 {a.photos.length > 1 && (
                   <div className="mt-3 grid grid-cols-3 gap-1.5">
                     {a.photos.slice(0, 6).map((p) => (
-                      <FamilyImage
+                      <FamilyMedia
                         key={p.id}
                         path={p.url}
+                        kind={p.kind}
+                        durationSeconds={p.duration_seconds}
                         alt={p.caption ?? "Family photo"}
                         className="aspect-square w-full rounded-lg"
                       />
