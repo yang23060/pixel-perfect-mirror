@@ -41,6 +41,72 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
+const PREF_KEYS = [
+  { key: "comments", label: "Comments on my posts" },
+  { key: "reactions", label: "Reactions to my posts" },
+  { key: "mentions", label: "When someone mentions me" },
+  { key: "events", label: "New events and invitations" },
+  { key: "birthdays", label: "Birthday reminders" },
+  { key: "albums", label: "New albums and photos" },
+] as const;
+
+type PrefKey = (typeof PREF_KEYS)[number]["key"];
+
+function NotificationPrefsCard() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const prefs = useQuery({
+    queryKey: ["notification-prefs", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notification_prefs")
+        .select("*")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const update = async (key: PrefKey, value: boolean) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from("notification_prefs")
+      .upsert({ user_id: user.id, [key]: value }, { onConflict: "user_id" });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    void queryClient.invalidateQueries({ queryKey: ["notification-prefs", user.id] });
+  };
+
+  return (
+    <div className="card-soft space-y-3 p-5">
+      <h2 className="font-display text-xl">Notifications</h2>
+      <p className="text-sm text-muted-foreground">Choose what you want to hear about.</p>
+      {prefs.isLoading && <LoadingBlock rows={2} />}
+      {prefs.error && <ErrorState message="We couldn't load your notification settings." />}
+      {!prefs.isLoading &&
+        !prefs.error &&
+        PREF_KEYS.map((p) => (
+          <div
+            key={p.key}
+            className="flex items-center justify-between rounded-xl bg-muted px-3 py-2"
+          >
+            <Label htmlFor={`pref-${p.key}`}>{p.label}</Label>
+            <Switch
+              id={`pref-${p.key}`}
+              checked={prefs.data ? Boolean(prefs.data[p.key]) : true}
+              onCheckedChange={(v) => void update(p.key, v)}
+            />
+          </div>
+        ))}
+    </div>
+  );
+}
+
 function SettingsPage() {
   const { user, profile, refreshProfile, signOut } = useAuth();
   const { family, familyId, isAdmin, refresh, memberships } = useFamily();
