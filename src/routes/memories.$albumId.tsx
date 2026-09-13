@@ -93,6 +93,7 @@ function PhotoViewer({
   const { familyId, isAdmin, members } = useFamily();
   const [caption, setCaption] = useState(photo.caption ?? "");
   const [comment, setComment] = useState("");
+  const [replyTo, setReplyTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const canManage = photo.uploader_id === user?.id || album.created_by === user?.id || isAdmin;
 
