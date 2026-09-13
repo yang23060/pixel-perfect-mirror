@@ -408,7 +408,11 @@ function AlbumPage() {
     queryFn: async () => {
       const [r, c] = await Promise.all([
         supabase.from("photo_reactions").select("photo_id").in("photo_id", photoIds),
-        supabase.from("photo_comments").select("photo_id").in("photo_id", photoIds),
+        supabase
+          .from("photo_comments")
+          .select("id, photo_id, content, author_id, reply_to, created_at")
+          .in("photo_id", photoIds)
+          .order("created_at", { ascending: true }),
       ]);
       if (r.error) throw r.error;
       if (c.error) throw c.error;
@@ -416,9 +420,17 @@ function AlbumPage() {
       for (const row of r.data ?? [])
         reactions.set(row.photo_id, (reactions.get(row.photo_id) ?? 0) + 1);
       const comments = new Map<string, number>();
-      for (const row of c.data ?? [])
+      const previews = new Map<string, { top: PhotoComment; reply: PhotoComment | null }>();
+      for (const row of (c.data ?? []) as PhotoComment[]) {
         comments.set(row.photo_id, (comments.get(row.photo_id) ?? 0) + 1);
-      return { reactions, comments };
+        const existing = previews.get(row.photo_id);
+        if (!existing) {
+          if (!row.reply_to) previews.set(row.photo_id, { top: row, reply: null });
+        } else if (!existing.reply && existing.top.id === row.reply_to) {
+          previews.set(row.photo_id, { top: existing.top, reply: row });
+        }
+      }
+      return { reactions, comments, previews };
     },
   });
 
