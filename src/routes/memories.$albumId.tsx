@@ -204,6 +204,7 @@ function PhotoViewer({
       family_id: familyId,
       author_id: user.id,
       content: comment.trim(),
+      reply_to: replyTo,
     });
     setBusy(false);
     if (error) {
