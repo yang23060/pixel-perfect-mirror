@@ -1034,6 +1034,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active_family_id: string | null
           anniversary: string | null
           avatar_url: string | null
           bio: string | null
@@ -1050,6 +1051,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_family_id?: string | null
           anniversary?: string | null
           avatar_url?: string | null
           bio?: string | null
@@ -1066,6 +1068,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_family_id?: string | null
           anniversary?: string | null
           avatar_url?: string | null
           bio?: string | null
@@ -1081,7 +1084,15 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_active_family_id_fkey"
+            columns: ["active_family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reactions: {
         Row: {

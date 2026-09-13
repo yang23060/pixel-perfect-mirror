@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, type Profile } from "@/lib/auth";
 
@@ -42,13 +42,19 @@ const FamilyContext = createContext<FamilyContextValue | null>(null);
 const STORAGE_KEY = "family-circle:current-family";
 
 export function FamilyProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const queryClient = useQueryClient();
   const [currentId, setCurrentId] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) setCurrentId(stored);
   }, []);
+
+  // The saved choice on the account wins when this device has no preference yet.
+  useEffect(() => {
+    if (!currentId && profile?.active_family_id) setCurrentId(profile.active_family_id);
+  }, [currentId, profile?.active_family_id]);
 
   const membershipQuery = useQuery({
     queryKey: ["memberships", user?.id],
@@ -105,15 +111,30 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       members: membersQuery.data ?? [],
       membersLoading: membersQuery.isLoading,
       setFamilyId: (id: string) => {
+        if (id === familyId) return;
         window.localStorage.setItem(STORAGE_KEY, id);
         setCurrentId(id);
+        // Drop the previous family's cached content so nothing bleeds across.
+        queryClient.removeQueries({
+          predicate: (q) => {
+            const key = q.queryKey[0];
+            return key !== "profile" && key !== "memberships";
+          },
+        });
+        if (user) {
+          void supabase
+            .from("profiles")
+            .update({ active_family_id: id })
+            .eq("id", user.id)
+            .then(() => queryClient.invalidateQueries({ queryKey: ["profile"] }));
+        }
       },
       refresh: () => {
         void membershipQuery.refetch();
         void membersQuery.refetch();
       },
     }),
-    [memberships, membershipQuery, membersQuery, active, familyId],
+    [memberships, membershipQuery, membersQuery, active, familyId, queryClient, user],
   );
 
   return <FamilyContext.Provider value={value}>{children}</FamilyContext.Provider>;

@@ -3,7 +3,7 @@
 Order: event bug first, then stages 1-6 and 8-10 in listed order.
 
 - [x] 7. Fix Create Event date validation (split date + time inputs, local-time combine, end >= start, all-day)
-- [ ] 1. Multiple families + family switching (active_family_id, My Families page, per-family cache/realtime isolation, RLS hardening)
+- [x] 1. Multiple families + family switching (active_family_id on profiles, /families page, cache isolation on switch, account-level remembered family)
 - [ ] 2. Family moment posts (title/date/location, post_media, contributors, collage 1+2 with +N, carousel, "Add yours")
 - [ ] 3. Photo-only Stories (stories tables, story row, creator, viewer, 24h expires_at, views, save to album)
 - [ ] 4. Chat photo attachments (message_attachments, previews, progress, full-screen viewer)

@@ -200,6 +200,9 @@ export function AppShell({ children, title }: { children: ReactNode; title?: str
                       <DropdownMenuSeparator />
                     </>
                   )}
+                  <DropdownMenuItem onClick={() => void navigate({ to: "/families" })}>
+                    My families
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => void navigate({ to: "/settings" })}>
                     Settings
                   </DropdownMenuItem>

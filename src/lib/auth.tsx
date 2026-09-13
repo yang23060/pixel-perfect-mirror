@@ -16,6 +16,7 @@ export type Profile = {
   contact_phone: string | null;
   share_contact: boolean;
   onboarded: boolean;
+  active_family_id: string | null;
 };
 
 type AuthContextValue = {
