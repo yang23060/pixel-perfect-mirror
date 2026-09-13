@@ -15,6 +15,13 @@
       "when": 1789185794509,
       "tag": "0001_storage_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789285255457,
+      "tag": "0002_add_active_family_to_profiles",
+      "breakpoints": true
     }
   ]
 }
