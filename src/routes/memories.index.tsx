@@ -362,7 +362,7 @@ function MemoryCard({
   onDelete,
 }: {
   album: AlbumRow;
-  engagement?: Engagement;
+  engagement: Engagement | undefined;
   onLike: (albumId: string, photoId: string, liked: boolean) => void;
   onOpen: () => void;
   canManage: boolean;
