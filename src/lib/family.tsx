@@ -42,13 +42,19 @@ const FamilyContext = createContext<FamilyContextValue | null>(null);
 const STORAGE_KEY = "family-circle:current-family";
 
 export function FamilyProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const queryClient = useQueryClient();
   const [currentId, setCurrentId] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) setCurrentId(stored);
   }, []);
+
+  // The saved choice on the account wins when this device has no preference yet.
+  useEffect(() => {
+    if (!currentId && profile?.active_family_id) setCurrentId(profile.active_family_id);
+  }, [currentId, profile?.active_family_id]);
 
   const membershipQuery = useQuery({
     queryKey: ["memberships", user?.id],
