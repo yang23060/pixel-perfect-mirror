@@ -259,8 +259,12 @@ function EventDialog({
       )}
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create an event</DialogTitle>
-          <DialogDescription>Everyone invited can RSVP and see the details.</DialogDescription>
+          <DialogTitle>{editing ? "Edit event" : "Create an event"}</DialogTitle>
+          <DialogDescription>
+            {editing
+              ? "Update the details — everyone keeps their RSVP."
+              : "Everyone invited can RSVP and see the details."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
