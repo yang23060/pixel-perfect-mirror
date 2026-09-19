@@ -634,7 +634,7 @@ function CalendarPage() {
     <AppShell title="Calendar">
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <CreateEventDialog />
+          <EventDialog />
         </div>
 
         <Tabs defaultValue="month">
