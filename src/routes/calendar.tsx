@@ -112,23 +112,47 @@ function combineLocal(date: string, time: string, allDay: boolean): Date | null 
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function CreateEventDialog() {
+/** Split a stored timestamp into local date and time form values. */
+function splitLocal(iso: string | null) {
+  if (!iso) return { date: "", time: "" };
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { date: "", time: "" };
+  return { date: format(d, "yyyy-MM-dd"), time: format(d, "HH:mm") };
+}
+
+/** Create a new event, or edit an existing one when `event` is given. */
+function EventDialog({
+  event,
+  open: openProp,
+  onOpenChange,
+}: {
+  event?: EventRow;
+  open?: boolean;
+  onOpenChange?: (value: boolean) => void;
+}) {
   const { familyId, members } = useFamily();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [selfOpen, setSelfOpen] = useState(false);
+  const open = openProp ?? selfOpen;
+  const setOpen = onOpenChange ?? setSelfOpen;
+  const editing = !!event;
+  const start = splitLocal(event?.starts_at ?? null);
+  const end = splitLocal(event?.ends_at ?? null);
   const [busy, setBusy] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [startTime, setStartTime] = useState("18:00");
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [allDay, setAllDay] = useState(false);
-  const [location, setLocation] = useState("");
-  const [category, setCategory] = useState("gathering");
-  const [reminder, setReminder] = useState("60");
-  const [recurrence, setRecurrence] = useState("none");
+  const [title, setTitle] = useState(event?.title ?? "");
+  const [description, setDescription] = useState(event?.description ?? "");
+  const [startDate, setStartDate] = useState(start.date);
+  const [startTime, setStartTime] = useState(start.time || "18:00");
+  const [endDate, setEndDate] = useState(end.date);
+  const [endTime, setEndTime] = useState(end.time);
+  const [allDay, setAllDay] = useState(event?.all_day ?? false);
+  const [location, setLocation] = useState(event?.location ?? "");
+  const [category, setCategory] = useState(event?.category ?? "gathering");
+  const [reminder, setReminder] = useState(
+    event?.reminder_minutes == null ? (editing ? "none" : "60") : String(event.reminder_minutes),
+  );
+  const [recurrence, setRecurrence] = useState(event?.recurrence ?? "none");
   const [invited, setInvited] = useState<string[]>([]);
   const [cover, setCover] = useState<File | null>(null);
 
