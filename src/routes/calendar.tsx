@@ -506,13 +506,22 @@ function EventCard({ event }: { event: EventRow }) {
             {CATEGORIES.find((c) => c.value === event.category)?.label ?? "Other"}
           </Badge>
           {(mine || isAdmin) && (
-            <button
-              aria-label="Delete event"
-              onClick={() => setConfirmDelete(true)}
-              className="p-1.5 text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="size-4" />
-            </button>
+            <>
+              <button
+                aria-label="Edit event"
+                onClick={() => setEditOpen(true)}
+                className="p-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="size-4" />
+              </button>
+              <button
+                aria-label="Delete event"
+                onClick={() => setConfirmDelete(true)}
+                className="p-1.5 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </>
           )}
         </div>
 
