@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import { Heart, ImagePlus, MapPin, MessageCircle, MoreHorizontal, Plus, Star, Trash2, X } from "lucide-react";
