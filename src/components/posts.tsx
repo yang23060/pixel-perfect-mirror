@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import { Heart, ImagePlus, MapPin, MessageCircle, MoreHorizontal, Plus, Star, Trash2, X } from "lucide-react";
@@ -803,13 +804,118 @@ export function PostCard({ post }: { post: PostRow }) {
   );
 }
 
+type AlbumFeedRow = {
+  id: string;
+  family_id: string;
+  created_by: string;
+  title: string;
+  description: string | null;
+  event_date: string | null;
+  created_at: string;
+  photos: {
+    id: string;
+    url: string;
+    kind: string;
+    duration_seconds: number | null;
+    position: number | null;
+  }[];
+};
+
+function useFamilyAlbums(familyId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: ["feed-albums", familyId],
+    enabled: !!familyId && enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("albums")
+        .select("id, family_id, created_by, title, description, event_date, created_at, photos(id, url, kind, duration_seconds, position)")
+        .eq("family_id", familyId!)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return (data ?? []) as unknown as AlbumFeedRow[];
+    },
+  });
+}
+
+function AlbumFeedCard({ album }: { album: AlbumFeedRow }) {
+  const { members } = useFamily();
+  const photos = [...album.photos].sort(
+    (a, b) => (a.position ?? 0) - (b.position ?? 0),
+  );
+  const shown = photos.slice(0, 4);
+  return (
+    <article className="card-soft overflow-hidden">
+      <div className="flex items-center gap-3 p-4 pb-3">
+        <MemberAvatar
+          name={memberName(members, album.created_by)}
+          avatarPath={memberAvatar(members, album.created_by)}
+        />
+        <div className="min-w-0">
+          <p className="truncate font-semibold">{memberName(members, album.created_by)}</p>
+          <p className="text-sm text-muted-foreground">
+            shared a moment ·{" "}
+            {formatDistanceToNow(new Date(album.created_at), { addSuffix: true })}
+          </p>
+        </div>
+      </div>
+
+      <Link to="/memories/$albumId" params={{ albumId: album.id }} className="block">
+        <div className="px-4 pb-3">
+          <p className="font-semibold">{album.title}</p>
+          {album.description && (
+            <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed">
+              {album.description}
+            </p>
+          )}
+          {album.event_date && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              {format(new Date(album.event_date), "d MMM yyyy")}
+            </p>
+          )}
+        </div>
+        {shown.length > 0 && (
+          <div className={shown.length === 1 ? "" : "grid grid-cols-2 gap-1"}>
+            {shown.map((p) => (
+              <FamilyMedia
+                key={p.id}
+                path={p.url}
+                kind={p.kind}
+                durationSeconds={p.duration_seconds}
+                alt={album.title}
+                thumbWidth={640}
+                className={shown.length === 1 ? "max-h-[420px] w-full" : "aspect-square w-full"}
+              />
+            ))}
+          </div>
+        )}
+        <p className="p-4 text-sm font-semibold text-primary">
+          {photos.length > shown.length
+            ? `View album · ${photos.length} photos`
+            : "View album"}
+        </p>
+      </Link>
+    </article>
+  );
+}
+
 export function PostFeed({ highlightsOnly = false }: { highlightsOnly?: boolean }) {
   const { familyId } = useFamily();
   const { data, isLoading, error } = usePosts(familyId, { highlightsOnly });
+  const albums = useFamilyAlbums(familyId, !highlightsOnly);
 
-  if (isLoading) return <LoadingBlock />;
+  if (isLoading || albums.isLoading) return <LoadingBlock />;
   if (error) return <ErrorState message="We couldn't load the family feed." />;
-  if (!data || data.length === 0) {
+  const items = [
+    ...(data ?? []).map((post) => ({ kind: "post" as const, at: post.created_at, post })),
+    ...(albums.data ?? []).map((album) => ({
+      kind: "album" as const,
+      at: album.created_at,
+      album,
+    })),
+  ].sort((a, b) => (a.at < b.at ? 1 : -1));
+
+  if (items.length === 0) {
     return (
       <EmptyState
         icon={<Heart className="size-8" />}
@@ -824,9 +930,13 @@ export function PostFeed({ highlightsOnly = false }: { highlightsOnly?: boolean 
   }
   return (
     <div className="space-y-4">
-      {data.map((post) => (
-        <PostCard key={post.id} post={post} />
-      ))}
+      {items.map((item) =>
+        item.kind === "post" ? (
+          <PostCard key={item.post.id} post={item.post} />
+        ) : (
+          <AlbumFeedCard key={item.album.id} album={item.album} />
+        ),
+      )}
     </div>
   );
 }

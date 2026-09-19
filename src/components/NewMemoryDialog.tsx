@@ -31,7 +31,7 @@ type QueuedFile = {
  * The single posting flow for memories. Used by the Memories page and by
  * "Share the moment" on Home so both create the same album.
  */
-export function NewMemoryDialog({ triggerLabel = "New album" }: { triggerLabel?: string }) {
+export function NewMemoryDialog({ triggerLabel = "Share a moment" }: { triggerLabel?: string }) {
   const { familyId, members } = useFamily();
   const { user } = useAuth();
   const queryClient = useQueryClient();

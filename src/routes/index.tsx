@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { HeartHandshake, Vote } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { PostComposer, PostFeed } from "@/components/posts";
+import { PostFeed } from "@/components/posts";
+import { NewMemoryDialog } from "@/components/NewMemoryDialog";
 import { StoryRow } from "@/components/stories";
 import { ConversationPrompt, NextEvent, UpcomingBirthdays } from "@/components/HomeWidgets";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -49,7 +50,9 @@ function HomePage() {
           </Button>
         </div>
 
-        <PostComposer />
+        <div className="card-soft p-4">
+          <NewMemoryDialog triggerLabel="Share a moment" />
+        </div>
 
         <Tabs defaultValue="all">
           <TabsList className="grid w-full grid-cols-2">
