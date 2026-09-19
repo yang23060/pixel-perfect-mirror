@@ -559,6 +559,16 @@ function EventCard({ event }: { event: EventRow }) {
         )}
       </div>
 
+      {editOpen && (
+        <EventDialog
+          key={`${event.id}-${event.updated_at}`}
+          event={event}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
+
+
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
