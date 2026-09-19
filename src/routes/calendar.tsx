@@ -13,7 +13,7 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Trash2 } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
@@ -112,23 +112,47 @@ function combineLocal(date: string, time: string, allDay: boolean): Date | null 
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function CreateEventDialog() {
+/** Split a stored timestamp into local date and time form values. */
+function splitLocal(iso: string | null) {
+  if (!iso) return { date: "", time: "" };
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { date: "", time: "" };
+  return { date: format(d, "yyyy-MM-dd"), time: format(d, "HH:mm") };
+}
+
+/** Create a new event, or edit an existing one when `event` is given. */
+function EventDialog({
+  event,
+  open: openProp,
+  onOpenChange,
+}: {
+  event?: EventRow;
+  open?: boolean;
+  onOpenChange?: (value: boolean) => void;
+}) {
   const { familyId, members } = useFamily();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [selfOpen, setSelfOpen] = useState(false);
+  const open = openProp ?? selfOpen;
+  const setOpen = onOpenChange ?? setSelfOpen;
+  const editing = !!event;
+  const start = splitLocal(event?.starts_at ?? null);
+  const end = splitLocal(event?.ends_at ?? null);
   const [busy, setBusy] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [startTime, setStartTime] = useState("18:00");
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [allDay, setAllDay] = useState(false);
-  const [location, setLocation] = useState("");
-  const [category, setCategory] = useState("gathering");
-  const [reminder, setReminder] = useState("60");
-  const [recurrence, setRecurrence] = useState("none");
+  const [title, setTitle] = useState(event?.title ?? "");
+  const [description, setDescription] = useState(event?.description ?? "");
+  const [startDate, setStartDate] = useState(start.date);
+  const [startTime, setStartTime] = useState(start.time || "18:00");
+  const [endDate, setEndDate] = useState(end.date);
+  const [endTime, setEndTime] = useState(end.time);
+  const [allDay, setAllDay] = useState(event?.all_day ?? false);
+  const [location, setLocation] = useState(event?.location ?? "");
+  const [category, setCategory] = useState(event?.category ?? "gathering");
+  const [reminder, setReminder] = useState(
+    event?.reminder_minutes == null ? (editing ? "none" : "60") : String(event.reminder_minutes),
+  );
+  const [recurrence, setRecurrence] = useState(event?.recurrence ?? "none");
   const [invited, setInvited] = useState<string[]>([]);
   const [cover, setCover] = useState<File | null>(null);
 
@@ -151,65 +175,74 @@ function CreateEventDialog() {
     }
     setBusy(true);
     try {
-      let coverPath: string | null = null;
+      let coverPath: string | null = event?.cover_url ?? null;
       if (cover) coverPath = await uploadFamilyImage(familyId, "events", cover);
-      const { data, error } = await supabase
-        .from("events")
-        .insert({
-          family_id: familyId,
-          created_by: user.id,
-          title: title.trim(),
-          description: description.trim() || null,
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt ? endsAt.toISOString() : null,
-          all_day: allDay,
-          location: location.trim() || null,
-          category: category as EventRow["category"] as never,
-          cover_url: coverPath,
-          reminder_minutes: reminder === "none" ? null : Number(reminder),
-          recurrence: recurrence === "none" ? null : recurrence,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
 
-      const guests = invited.length ? invited : members.map((m) => m.user_id);
-      await supabase.from("event_attendees").insert(
-        guests.map((id) => ({
-          event_id: data.id,
-          family_id: familyId,
-          user_id: id,
-          status: id === user.id ? ("going" as const) : null,
-        })),
-      );
-      const others = guests.filter((id) => id !== user.id);
-      if (others.length) {
-        await supabase.from("notifications").insert(
-          others.map((id) => ({
+      const fields = {
+        title: title.trim(),
+        description: description.trim() || null,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt ? endsAt.toISOString() : null,
+        all_day: allDay,
+        location: location.trim() || null,
+        category: category as EventRow["category"] as never,
+        cover_url: coverPath,
+        reminder_minutes: reminder === "none" ? null : Number(reminder),
+        recurrence: recurrence === "none" ? null : recurrence,
+      };
+
+      if (event) {
+        const { error } = await supabase.from("events").update(fields).eq("id", event.id);
+        if (error) throw error;
+        toast.success("Event updated.");
+      } else {
+        const { data, error } = await supabase
+          .from("events")
+          .insert({ family_id: familyId, created_by: user.id, ...fields })
+          .select("id")
+          .single();
+        if (error) throw error;
+
+        const guests = invited.length ? invited : members.map((m) => m.user_id);
+        await supabase.from("event_attendees").insert(
+          guests.map((id) => ({
+            event_id: data.id,
             family_id: familyId,
             user_id: id,
-            actor_id: user.id,
-            type: "event",
-            title: `New event: ${title.trim()}`,
-            body: format(startsAt, allDay ? "eee d MMM" : "eee d MMM, HH:mm"),
-            link: "/calendar",
+            status: id === user.id ? ("going" as const) : null,
           })),
         );
+        const others = guests.filter((id) => id !== user.id);
+        if (others.length) {
+          await supabase.from("notifications").insert(
+            others.map((id) => ({
+              family_id: familyId,
+              user_id: id,
+              actor_id: user.id,
+              type: "event",
+              title: `New event: ${title.trim()}`,
+              body: format(startsAt, allDay ? "eee d MMM" : "eee d MMM, HH:mm"),
+              link: "/calendar",
+            })),
+          );
+        }
+        toast.success("Event added to the family calendar.");
+        setTitle("");
+        setDescription("");
+        setStartDate("");
+        setEndDate("");
+        setEndTime("");
+        setLocation("");
+        setInvited([]);
       }
-      toast.success("Event added to the family calendar.");
       setOpen(false);
-      setTitle("");
-      setDescription("");
-      setStartDate("");
-      setEndDate("");
-      setEndTime("");
-      setLocation("");
-      setInvited([]);
       setCover(null);
       void queryClient.invalidateQueries({ queryKey: ["events"] });
       void queryClient.invalidateQueries({ queryKey: ["next-events"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not create the event.");
+      toast.error(
+        err instanceof Error ? err.message : `Could not ${editing ? "update" : "create"} the event.`,
+      );
     } finally {
       setBusy(false);
     }
@@ -217,15 +250,21 @@ function CreateEventDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="lg">
-          <CalendarPlus className="mr-2 size-5" /> New event
-        </Button>
-      </DialogTrigger>
+      {!editing && (
+        <DialogTrigger asChild>
+          <Button size="lg">
+            <CalendarPlus className="mr-2 size-5" /> New event
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create an event</DialogTitle>
-          <DialogDescription>Everyone invited can RSVP and see the details.</DialogDescription>
+          <DialogTitle>{editing ? "Edit event" : "Create an event"}</DialogTitle>
+          <DialogDescription>
+            {editing
+              ? "Update the details — everyone keeps their RSVP."
+              : "Everyone invited can RSVP and see the details."}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
@@ -346,33 +385,35 @@ function CreateEventDialog() {
               onChange={(e) => setCover(e.target.files?.[0] ?? null)}
             />
           </div>
-          <div>
-            <span className="mb-1 block text-sm font-semibold">Invite (everyone by default)</span>
-            <div className="flex flex-wrap gap-2">
-              {members.map((m) => {
-                const on = invited.includes(m.user_id);
-                return (
-                  <button
-                    key={m.user_id}
-                    type="button"
-                    onClick={() =>
-                      setInvited((prev) =>
-                        on ? prev.filter((x) => x !== m.user_id) : [...prev, m.user_id],
-                      )
-                    }
-                    className={`rounded-full border px-3 py-1 text-sm ${
-                      on ? "border-primary bg-sage/50 font-semibold" : "border-border"
-                    }`}
-                  >
-                    {m.profile?.display_name ?? "Family member"}
-                  </button>
-                );
-              })}
+          {!editing && (
+            <div>
+              <span className="mb-1 block text-sm font-semibold">Invite (everyone by default)</span>
+              <div className="flex flex-wrap gap-2">
+                {members.map((m) => {
+                  const on = invited.includes(m.user_id);
+                  return (
+                    <button
+                      key={m.user_id}
+                      type="button"
+                      onClick={() =>
+                        setInvited((prev) =>
+                          on ? prev.filter((x) => x !== m.user_id) : [...prev, m.user_id],
+                        )
+                      }
+                      className={`rounded-full border px-3 py-1 text-sm ${
+                        on ? "border-primary bg-sage/50 font-semibold" : "border-border"
+                      }`}
+                    >
+                      {m.profile?.display_name ?? "Family member"}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={busy} className="w-full">
-              {busy ? "Saving…" : "Create event"}
+              {busy ? "Saving…" : editing ? "Save changes" : "Create event"}
             </Button>
           </DialogFooter>
         </form>
@@ -386,6 +427,7 @@ function EventCard({ event }: { event: EventRow }) {
   const { members, isAdmin } = useFamily();
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const mine = event.created_by === user?.id;
   const myRsvp = event.event_attendees.find((a) => a.user_id === user?.id);
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -465,13 +507,22 @@ function EventCard({ event }: { event: EventRow }) {
             {CATEGORIES.find((c) => c.value === event.category)?.label ?? "Other"}
           </Badge>
           {(mine || isAdmin) && (
-            <button
-              aria-label="Delete event"
-              onClick={() => setConfirmDelete(true)}
-              className="p-1.5 text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="size-4" />
-            </button>
+            <>
+              <button
+                aria-label="Edit event"
+                onClick={() => setEditOpen(true)}
+                className="p-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <Pencil className="size-4" />
+              </button>
+              <button
+                aria-label="Delete event"
+                onClick={() => setConfirmDelete(true)}
+                className="p-1.5 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </>
           )}
         </div>
 
@@ -507,6 +558,16 @@ function EventCard({ event }: { event: EventRow }) {
           </div>
         )}
       </div>
+
+      {editOpen && (
+        <EventDialog
+          key={`${event.id}-${event.starts_at}`}
+          event={event}
+          open={editOpen}
+          onOpenChange={setEditOpen}
+        />
+      )}
+
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
@@ -583,7 +644,7 @@ function CalendarPage() {
     <AppShell title="Calendar">
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <CreateEventDialog />
+          <EventDialog />
         </div>
 
         <Tabs defaultValue="month">
