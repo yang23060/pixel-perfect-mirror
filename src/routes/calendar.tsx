@@ -175,65 +175,74 @@ function EventDialog({
     }
     setBusy(true);
     try {
-      let coverPath: string | null = null;
+      let coverPath: string | null = event?.cover_url ?? null;
       if (cover) coverPath = await uploadFamilyImage(familyId, "events", cover);
-      const { data, error } = await supabase
-        .from("events")
-        .insert({
-          family_id: familyId,
-          created_by: user.id,
-          title: title.trim(),
-          description: description.trim() || null,
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt ? endsAt.toISOString() : null,
-          all_day: allDay,
-          location: location.trim() || null,
-          category: category as EventRow["category"] as never,
-          cover_url: coverPath,
-          reminder_minutes: reminder === "none" ? null : Number(reminder),
-          recurrence: recurrence === "none" ? null : recurrence,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
 
-      const guests = invited.length ? invited : members.map((m) => m.user_id);
-      await supabase.from("event_attendees").insert(
-        guests.map((id) => ({
-          event_id: data.id,
-          family_id: familyId,
-          user_id: id,
-          status: id === user.id ? ("going" as const) : null,
-        })),
-      );
-      const others = guests.filter((id) => id !== user.id);
-      if (others.length) {
-        await supabase.from("notifications").insert(
-          others.map((id) => ({
+      const fields = {
+        title: title.trim(),
+        description: description.trim() || null,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt ? endsAt.toISOString() : null,
+        all_day: allDay,
+        location: location.trim() || null,
+        category: category as EventRow["category"] as never,
+        cover_url: coverPath,
+        reminder_minutes: reminder === "none" ? null : Number(reminder),
+        recurrence: recurrence === "none" ? null : recurrence,
+      };
+
+      if (event) {
+        const { error } = await supabase.from("events").update(fields).eq("id", event.id);
+        if (error) throw error;
+        toast.success("Event updated.");
+      } else {
+        const { data, error } = await supabase
+          .from("events")
+          .insert({ family_id: familyId, created_by: user.id, ...fields })
+          .select("id")
+          .single();
+        if (error) throw error;
+
+        const guests = invited.length ? invited : members.map((m) => m.user_id);
+        await supabase.from("event_attendees").insert(
+          guests.map((id) => ({
+            event_id: data.id,
             family_id: familyId,
             user_id: id,
-            actor_id: user.id,
-            type: "event",
-            title: `New event: ${title.trim()}`,
-            body: format(startsAt, allDay ? "eee d MMM" : "eee d MMM, HH:mm"),
-            link: "/calendar",
+            status: id === user.id ? ("going" as const) : null,
           })),
         );
+        const others = guests.filter((id) => id !== user.id);
+        if (others.length) {
+          await supabase.from("notifications").insert(
+            others.map((id) => ({
+              family_id: familyId,
+              user_id: id,
+              actor_id: user.id,
+              type: "event",
+              title: `New event: ${title.trim()}`,
+              body: format(startsAt, allDay ? "eee d MMM" : "eee d MMM, HH:mm"),
+              link: "/calendar",
+            })),
+          );
+        }
+        toast.success("Event added to the family calendar.");
+        setTitle("");
+        setDescription("");
+        setStartDate("");
+        setEndDate("");
+        setEndTime("");
+        setLocation("");
+        setInvited([]);
       }
-      toast.success("Event added to the family calendar.");
       setOpen(false);
-      setTitle("");
-      setDescription("");
-      setStartDate("");
-      setEndDate("");
-      setEndTime("");
-      setLocation("");
-      setInvited([]);
       setCover(null);
       void queryClient.invalidateQueries({ queryKey: ["events"] });
       void queryClient.invalidateQueries({ queryKey: ["next-events"] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not create the event.");
+      toast.error(
+        err instanceof Error ? err.message : `Could not ${editing ? "update" : "create"} the event.`,
+      );
     } finally {
       setBusy(false);
     }
@@ -241,11 +250,13 @@ function EventDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="lg">
-          <CalendarPlus className="mr-2 size-5" /> New event
-        </Button>
-      </DialogTrigger>
+      {!editing && (
+        <DialogTrigger asChild>
+          <Button size="lg">
+            <CalendarPlus className="mr-2 size-5" /> New event
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create an event</DialogTitle>
