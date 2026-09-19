@@ -1,14 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { HeartHandshake, Vote } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { PostComposer, PostFeed } from "@/components/posts";
+import { PostFeed } from "@/components/posts";
 import { StoryRow } from "@/components/stories";
-import {
-  CheckInCard,
-  ConversationPrompt,
-  NextEvent,
-  UpcomingBirthdays,
-} from "@/components/HomeWidgets";
+import { NewMemoryDialog } from "@/components/NewMemoryDialog";
+import { ConversationPrompt, NextEvent, UpcomingBirthdays } from "@/components/HomeWidgets";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 
