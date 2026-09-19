@@ -427,6 +427,7 @@ function EventCard({ event }: { event: EventRow }) {
   const { members, isAdmin } = useFamily();
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const mine = event.created_by === user?.id;
   const myRsvp = event.event_attendees.find((a) => a.user_id === user?.id);
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
