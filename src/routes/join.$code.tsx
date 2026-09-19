@@ -1,6 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useFamily } from "@/lib/family";
 
 export const Route = createFileRoute("/join/$code")({
   head: () => ({
@@ -16,8 +19,11 @@ export const Route = createFileRoute("/join/$code")({
 
 function JoinPage() {
   const { code } = Route.useParams();
-  const { session, loading } = useAuth();
+  const { session, user, loading, refreshProfile } = useAuth();
+  const { refresh, setFamilyId } = useFamily();
   const navigate = useNavigate();
+  const ran = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -25,12 +31,39 @@ function JoinPage() {
       void navigate({ to: "/auth", search: { next: `/join/${code}` } });
       return;
     }
-    void navigate({ to: "/onboarding", search: { code } });
-  }, [loading, session, code, navigate]);
+    if (ran.current || !user) return;
+    ran.current = true;
+
+    void (async () => {
+      const { data, error: rpcError } = await supabase.rpc("join_family_with_code", {
+        _code: code.trim(),
+        _relationship: "Other",
+      });
+      if (rpcError) {
+        setError(rpcError.message);
+        toast.error(rpcError.message);
+        return;
+      }
+      const familyId = data as unknown as string;
+      await supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
+      refreshProfile();
+      refresh();
+      setFamilyId(familyId);
+      toast.success("You're in!");
+      void navigate({ to: "/family" });
+    })();
+  }, [loading, session, user, code, navigate, refresh, setFamilyId, refreshProfile]);
 
   return (
     <div className="surface-warm flex min-h-screen items-center justify-center px-4 text-center">
-      <p className="font-display text-xl">Opening your invitation…</p>
+      {error ? (
+        <div className="card-soft max-w-sm p-6">
+          <p className="font-display text-xl">That invitation didn't work</p>
+          <p className="mt-2 text-muted-foreground">{error}</p>
+        </div>
+      ) : (
+        <p className="font-display text-xl">Joining your family…</p>
+      )}
     </div>
   );
 }
