@@ -385,33 +385,35 @@ function EventDialog({
               onChange={(e) => setCover(e.target.files?.[0] ?? null)}
             />
           </div>
-          <div>
-            <span className="mb-1 block text-sm font-semibold">Invite (everyone by default)</span>
-            <div className="flex flex-wrap gap-2">
-              {members.map((m) => {
-                const on = invited.includes(m.user_id);
-                return (
-                  <button
-                    key={m.user_id}
-                    type="button"
-                    onClick={() =>
-                      setInvited((prev) =>
-                        on ? prev.filter((x) => x !== m.user_id) : [...prev, m.user_id],
-                      )
-                    }
-                    className={`rounded-full border px-3 py-1 text-sm ${
-                      on ? "border-primary bg-sage/50 font-semibold" : "border-border"
-                    }`}
-                  >
-                    {m.profile?.display_name ?? "Family member"}
-                  </button>
-                );
-              })}
+          {!editing && (
+            <div>
+              <span className="mb-1 block text-sm font-semibold">Invite (everyone by default)</span>
+              <div className="flex flex-wrap gap-2">
+                {members.map((m) => {
+                  const on = invited.includes(m.user_id);
+                  return (
+                    <button
+                      key={m.user_id}
+                      type="button"
+                      onClick={() =>
+                        setInvited((prev) =>
+                          on ? prev.filter((x) => x !== m.user_id) : [...prev, m.user_id],
+                        )
+                      }
+                      className={`rounded-full border px-3 py-1 text-sm ${
+                        on ? "border-primary bg-sage/50 font-semibold" : "border-border"
+                      }`}
+                    >
+                      {m.profile?.display_name ?? "Family member"}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={busy} className="w-full">
-              {busy ? "Saving…" : "Create event"}
+              {busy ? "Saving…" : editing ? "Save changes" : "Create event"}
             </Button>
           </DialogFooter>
         </form>
