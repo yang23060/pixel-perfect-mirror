@@ -19,14 +19,6 @@ const PROMPTS = [
   "What is the best advice a relative gave you?",
 ];
 
-const CHECKINS = [
-  { value: "great", label: "Great" },
-  { value: "good", label: "Good" },
-  { value: "okay", label: "Okay" },
-  { value: "tired", label: "Tired" },
-  { value: "need_support", label: "Need support" },
-] as const;
-
 function daysUntilBirthday(birthday: string) {
   const today = new Date();
   const b = new Date(birthday);
@@ -142,75 +134,3 @@ export function ConversationPrompt() {
   );
 }
 
-export function CheckInCard() {
-  const { user } = useAuth();
-  const { familyId, members } = useFamily();
-  const queryClient = useQueryClient();
-
-  const { data } = useQuery({
-    queryKey: ["check-ins", familyId],
-    enabled: !!familyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("check_ins")
-        .select("*")
-        .eq("family_id", familyId!)
-        .gte("created_at", new Date(Date.now() - 86400000).toISOString())
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const mine = data?.find(
-    (c) => c.user_id === user?.id && isSameDay(new Date(c.created_at), new Date()),
-  );
-
-  const save = async (status: (typeof CHECKINS)[number]["value"]) => {
-    if (!familyId || !user) return;
-    const { error } = await supabase
-      .from("check_ins")
-      .insert({ family_id: familyId, user_id: user.id, status });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success("Thanks for checking in.");
-    void queryClient.invalidateQueries({ queryKey: ["check-ins"] });
-  };
-
-  return (
-    <div className="card-soft p-4">
-      <h2 className="mb-2 flex items-center gap-2 font-display text-lg">
-        <MessageCircleHeart className="size-5 text-rose" /> How are you feeling today?
-      </h2>
-      <div className="flex flex-wrap gap-2">
-        {CHECKINS.map((c) => (
-          <button
-            key={c.value}
-            onClick={() => void save(c.value)}
-            className={`rounded-full border px-4 py-2 font-semibold ${
-              mine?.status === c.value ? "border-primary bg-sage/60" : "border-border hover:bg-muted"
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-      {data && data.length > 0 && (
-        <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
-          {data.slice(0, 4).map((c) => (
-            <li key={c.id}>
-              {members.find((m) => m.user_id === c.user_id)?.profile?.display_name ??
-                "Family member"}{" "}
-              is feeling{" "}
-              <span className="font-semibold text-foreground">
-                {CHECKINS.find((x) => x.value === c.status)?.label.toLowerCase()}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
