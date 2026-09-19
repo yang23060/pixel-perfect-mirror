@@ -561,7 +561,7 @@ function EventCard({ event }: { event: EventRow }) {
 
       {editOpen && (
         <EventDialog
-          key={`${event.id}-${event.updated_at}`}
+          key={`${event.id}-${event.starts_at}`}
           event={event}
           open={editOpen}
           onOpenChange={setEditOpen}
