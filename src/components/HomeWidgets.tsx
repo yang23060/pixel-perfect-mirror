@@ -1,10 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { format, isSameDay } from "date-fns";
-import { Cake, CalendarDays, MessageCircleHeart, Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { format } from "date-fns";
+import { Cake, CalendarDays, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { Button } from "@/components/ui/button";
