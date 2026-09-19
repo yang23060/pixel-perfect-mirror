@@ -37,7 +37,6 @@ function HomePage() {
           <UpcomingBirthdays />
           <NextEvent />
         </div>
-        <CheckInCard />
         <div className="grid grid-cols-2 gap-3">
           <Button asChild variant="outline" size="lg">
             <Link to="/polls">
@@ -51,7 +50,13 @@ function HomePage() {
           </Button>
         </div>
 
-        <PostComposer />
+        <div className="card-soft space-y-3 p-4">
+          <h2 className="font-display text-lg">Share the moment</h2>
+          <p className="text-sm text-muted-foreground">
+            Photos and videos you share here are saved to Memories for everyone.
+          </p>
+          <NewMemoryDialog triggerLabel="Share the moment" />
+        </div>
 
         <Tabs defaultValue="all">
           <TabsList className="grid w-full grid-cols-2">
