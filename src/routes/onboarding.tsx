@@ -131,7 +131,7 @@ function OnboardingPage() {
       refresh();
       setFamilyId(familyId);
       toast.success(choice === "create" ? "Your family space is ready!" : "You're in!");
-      void navigate({ to: "/" });
+      void navigate({ to: choice === "join" ? "/family" : "/" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
