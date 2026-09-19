@@ -11,20 +11,8 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states";
 import { useAuth } from "@/lib/auth";
 import { useFamily } from "@/lib/family";
-import { uploadFamilyMedia, validateMedia } from "@/lib/media";
-import { shareMemoryToChat } from "@/lib/chat-share";
-import { Button } from "@/components/ui/button";
+import { NewMemoryDialog } from "@/components/NewMemoryDialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
